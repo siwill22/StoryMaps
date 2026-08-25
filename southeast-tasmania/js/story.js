@@ -59,7 +59,7 @@ async function main() {
   const globe = new Globe(globeEl);
 
   await Promise.all([
-    globe.loadTextures('../../shared/data/textures.json'),
+    globe.loadTextures('../shared/data/textures.json'),
   ]);
 
   // This story is written to a 300 Ma narrative span, and the project now
