@@ -1,0 +1,292 @@
+{
+ "width": 2048,
+ "height": 1024,
+ "credit": "PALEOMAP PaleoAtlas, C. R. Scotese",
+ "frames": [
+  {
+   "age": 0.0,
+   "file": "textures/paleo_000.jpg",
+   "source": "Map1 PALEOMAP PaleoAtlas_000.jpg"
+  },
+  {
+   "age": 1.0,
+   "file": "textures/paleo_001.jpg",
+   "source": "Map2 Last Glacial Maximum_001.jpg"
+  },
+  {
+   "age": 4.0,
+   "file": "textures/paleo_004.jpg",
+   "source": "Map3 Pliocene_004.jpg"
+  },
+  {
+   "age": 6.0,
+   "file": "textures/paleo_006.jpg",
+   "source": "Map4 Messinian Event_006.jpg"
+  },
+  {
+   "age": 10.0,
+   "file": "textures/paleo_010.jpg",
+   "source": "Map5 Late Miocene_010.jpg"
+  },
+  {
+   "age": 15.0,
+   "file": "textures/paleo_015.jpg",
+   "source": "Map6  Middle Miocene_015.jpg"
+  },
+  {
+   "age": 20.0,
+   "file": "textures/paleo_020.jpg",
+   "source": "Map7  Early Miocene_020.jpg"
+  },
+  {
+   "age": 25.0,
+   "file": "textures/paleo_025.jpg",
+   "source": "Map8 Late Oligocene_025.jpg"
+  },
+  {
+   "age": 30.0,
+   "file": "textures/paleo_030.jpg",
+   "source": "Map9  Early Oligocene_030.jpg"
+  },
+  {
+   "age": 35.0,
+   "file": "textures/paleo_035.jpg",
+   "source": "Map10 Late Eocene_035.jpg"
+  },
+  {
+   "age": 40.0,
+   "file": "textures/paleo_040.jpg",
+   "source": "Map11 MIddle Eocene_040.jpg"
+  },
+  {
+   "age": 45.0,
+   "file": "textures/paleo_045.jpg",
+   "source": "Map12 early Middle Eocene_045.jpg"
+  },
+  {
+   "age": 50.0,
+   "file": "textures/paleo_050.jpg",
+   "source": "Map13 Early Eocene_050.jpg"
+  },
+  {
+   "age": 55.0,
+   "file": "textures/paleo_055.jpg",
+   "source": "Map14 PETM_055.jpg"
+  },
+  {
+   "age": 60.0,
+   "file": "textures/paleo_060.jpg",
+   "source": "Map15 Paleocene_060.jpg"
+  },
+  {
+   "age": 66.0,
+   "file": "textures/paleo_066.jpg",
+   "source": "Map16 KT Boundary_066.jpg"
+  },
+  {
+   "age": 70.0,
+   "file": "textures/paleo_070.jpg",
+   "source": "Map17 LtK Maastrichtian_070.jpg"
+  },
+  {
+   "age": 75.0,
+   "file": "textures/paleo_075.jpg",
+   "source": "Map18 LtK Late Campanian_075.jpg"
+  },
+  {
+   "age": 80.0,
+   "file": "textures/paleo_080.jpg",
+   "source": "Map19 LtK Early Campanian_080.jpg"
+  },
+  {
+   "age": 85.0,
+   "file": "textures/paleo_085.jpg",
+   "source": "Map20 LtK Santonian-Coniacian_085.jpg"
+  },
+  {
+   "age": 90.0,
+   "file": "textures/paleo_090.jpg",
+   "source": "Map21 LtK Turonian_090.jpg"
+  },
+  {
+   "age": 95.0,
+   "file": "textures/paleo_095.jpg",
+   "source": "Map22 LtK Cenomanian_095.jpg"
+  },
+  {
+   "age": 100.0,
+   "file": "textures/paleo_100.jpg",
+   "source": "Map23 EK Late Albian_100.jpg"
+  },
+  {
+   "age": 105.0,
+   "file": "textures/paleo_105.jpg",
+   "source": "Map24 EK Middle Albian_105.jpg"
+  },
+  {
+   "age": 110.0,
+   "file": "textures/paleo_110.jpg",
+   "source": "Map25 EK Early Albian_110.jpg"
+  },
+  {
+   "age": 115.0,
+   "file": "textures/paleo_115.jpg",
+   "source": "Map26 EK Late Aptian_115.jpg"
+  },
+  {
+   "age": 120.0,
+   "file": "textures/paleo_120.jpg",
+   "source": "Map27 EK Early Albian_120.jpg"
+  },
+  {
+   "age": 125.0,
+   "file": "textures/paleo_125.jpg",
+   "source": "Map28 EK Barremian_125.jpg"
+  },
+  {
+   "age": 130.0,
+   "file": "textures/paleo_130.jpg",
+   "source": "Map29 EK Hauterivian_130.jpg"
+  },
+  {
+   "age": 135.0,
+   "file": "textures/paleo_135.jpg",
+   "source": "Map30 EK Valangian_135.jpg"
+  },
+  {
+   "age": 140.0,
+   "file": "textures/paleo_140.jpg",
+   "source": "Map31 EK Berriasian_140.jpg"
+  },
+  {
+   "age": 145.0,
+   "file": "textures/paleo_145.jpg",
+   "source": "Map32 Jurassic-Cretaceous Boundary_145.jpg"
+  },
+  {
+   "age": 150.0,
+   "file": "textures/paleo_150.jpg",
+   "source": "Map33 LtJ Tithonian_150.jpg"
+  },
+  {
+   "age": 155.0,
+   "file": "textures/paleo_155.jpg",
+   "source": "Map34 LtJ Kimmeridgian_155.jpg"
+  },
+  {
+   "age": 160.0,
+   "file": "textures/paleo_160.jpg",
+   "source": "Map35 LtJ Oxfordian_160.jpg"
+  },
+  {
+   "age": 165.0,
+   "file": "textures/paleo_165.jpg",
+   "source": "Map36 MJ Callovian_165.jpg"
+  },
+  {
+   "age": 170.0,
+   "file": "textures/paleo_170.jpg",
+   "source": "Map37 MJ Bajocian&Bathonian_170.jpg"
+  },
+  {
+   "age": 175.0,
+   "file": "textures/paleo_175.jpg",
+   "source": "Map38 MJ Aalenian_175.jpg"
+  },
+  {
+   "age": 180.0,
+   "file": "textures/paleo_180.jpg",
+   "source": "Map39 EJ Toarcian_180.jpg"
+  },
+  {
+   "age": 185.0,
+   "file": "textures/paleo_185.jpg",
+   "source": "Map40 EJ Pliensbachian_185.jpg"
+  },
+  {
+   "age": 190.0,
+   "file": "textures/paleo_190.jpg",
+   "source": "Map41 EJ Sinemurian_190.jpg"
+  },
+  {
+   "age": 195.0,
+   "file": "textures/paleo_195.jpg",
+   "source": "Map42 EJ Hettangian_195.jpg"
+  },
+  {
+   "age": 200.0,
+   "file": "textures/paleo_200.jpg",
+   "source": "Map43 Triassic-Jurassic Boundary_200.jpg"
+  },
+  {
+   "age": 210.0,
+   "file": "textures/paleo_210.jpg",
+   "source": "Map44 LtTr Norian_210.jpg"
+  },
+  {
+   "age": 220.0,
+   "file": "textures/paleo_220.jpg",
+   "source": "Map45 LtTr Carnian_220.jpg"
+  },
+  {
+   "age": 230.0,
+   "file": "textures/paleo_230.jpg",
+   "source": "Map46 MTr Ladinian_230.jpg"
+  },
+  {
+   "age": 240.0,
+   "file": "textures/paleo_240.jpg",
+   "source": "Map47 MTr Anisian_240.jpg"
+  },
+  {
+   "age": 245.0,
+   "file": "textures/paleo_245.jpg",
+   "source": "Map48 ETr Induan-Olenekian_245.jpg"
+  },
+  {
+   "age": 250.0,
+   "file": "textures/paleo_250.jpg",
+   "source": "Map49 Permo-Triassic Boundary_250.jpg"
+  },
+  {
+   "age": 255.0,
+   "file": "textures/paleo_255.jpg",
+   "source": "Map50 LtP Lopingian_255.jpg"
+  },
+  {
+   "age": 260.0,
+   "file": "textures/paleo_260.jpg",
+   "source": "Map51 LtP Capitanian_260.jpg"
+  },
+  {
+   "age": 270.0,
+   "file": "textures/paleo_270.jpg",
+   "source": "Map52 MP Roadian&Wordian_270.jpg"
+  },
+  {
+   "age": 275.0,
+   "file": "textures/paleo_275.jpg",
+   "source": "Map53 EP Kungurian_275.jpg"
+  },
+  {
+   "age": 280.0,
+   "file": "textures/paleo_280.jpg",
+   "source": "Map54 EP Artinskian_280.jpg"
+  },
+  {
+   "age": 290.0,
+   "file": "textures/paleo_290.jpg",
+   "source": "Map55 EP Sakmarian_290.jpg"
+  },
+  {
+   "age": 295.0,
+   "file": "textures/paleo_295.jpg",
+   "source": "Map56 EP Asselian_295.jpg"
+  },
+  {
+   "age": 300.0,
+   "file": "textures/paleo_300.jpg",
+   "source": "Map57 LtCarb Gzhelian_300.jpg"
+  }
+ ]
+}

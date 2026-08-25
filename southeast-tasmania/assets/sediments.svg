@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="sea" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#0a2330"/>
+      <stop offset="100%" stop-color="#163d4e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sea)"/>
+  <g opacity="0.9">
+    <path d="M0 760 L1600 760 L1600 900 L0 900 Z" fill="#2d534c"/>
+    <path d="M0 680 L1600 680 L1600 760 L0 760 Z" fill="#526e52"/>
+    <path d="M0 620 L1600 620 L1600 680 L0 680 Z" fill="#7b8c5d"/>
+    <path d="M0 575 L1600 575 L1600 620 L0 620 Z" fill="#9a8b5b"/>
+  </g>
+  <g stroke="#efe6c4" stroke-width="2.5" opacity="0.75">
+    <path d="M70 720 C 220 660, 300 660, 430 700 S 730 820, 900 720 S 1180 650, 1520 710" fill="none"/>
+    <path d="M90 640 C 220 610, 330 620, 510 640 S 820 700, 1000 640 S 1280 585, 1510 610" fill="none"/>
+    <path d="M120 585 C 300 560, 420 575, 620 590 S 1000 610, 1460 585" fill="none"/>
+  </g>
+  <g fill="#f4f0dd" font-family="Arial, sans-serif" font-size="26" font-weight="600">
+    <text x="110" y="770">Permian–Triassic basin</text>
+    <text x="1180" y="590">fossils &amp; plant beds</text>
+  </g>
+</svg>

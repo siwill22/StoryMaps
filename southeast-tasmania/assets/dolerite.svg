@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg2" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1c1f22"/>
+      <stop offset="100%" stop-color="#4b3d2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg2)"/>
+
+  <g opacity="0.96">
+    <rect x="0" y="0" width="1600" height="900" fill="#2d2b2e" opacity="0.35"/>
+    <g stroke="#d5d0b0" stroke-width="10" opacity="0.8">
+      <path d="M120 780 L470 350 L640 340 L1000 760" fill="none"/>
+      <path d="M340 820 L700 240 L1160 260 L1440 780" fill="none"/>
+      <path d="M560 895 L860 120 L1260 170 L1510 830" fill="none"/>
+    </g>
+    <g stroke="#9f8c70" stroke-width="18" opacity="0.8">
+      <path d="M210 760 L520 420 L820 600 L1180 400 L1450 700" fill="none"/>
+    </g>
+    <g fill="#675d4d" opacity="0.45">
+      <rect x="170" y="620" width="230" height="200"/>
+      <rect x="560" y="470" width="290" height="190"/>
+      <rect x="980" y="520" width="320" height="180"/>
+    </g>
+  </g>
+
+  <g fill="#f3e9d0" font-family="Arial, sans-serif" font-size="26" font-weight="600">
+    <text x="146" y="760">dykes</text>
+    <text x="945" y="680">sills</text>
+    <text x="910" y="250">Jurassic dolerite</text>
+  </g>
+</svg>

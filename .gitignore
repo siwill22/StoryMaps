@@ -1,0 +1,18 @@
+# Ignore everything by default; only southeast-tasmania and the shared
+# engine/data it depends on are committed for now. Other story-map folders
+# (southern-ocean-gateways, spilhaus-*) stay local until they're ready.
+*
+
+!.gitignore
+!README.md
+
+!shared/
+!shared/**
+
+!southeast-tasmania/
+!southeast-tasmania/**
+
+# Still exclude OS/tooling cruft even inside tracked folders.
+.DS_Store
+__pycache__/
+*.pyc
