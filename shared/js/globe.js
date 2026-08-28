@@ -382,7 +382,17 @@ export class Globe {
    */
   get projector() {
     if (!this._projector) {
-      this._projector = { project: (v) => this.projectVec3(v) };
+      const globe = this;
+      this._projector = {
+        project: (v) => globe.projectVec3(v),
+        // Filled layers need the view axis to close a shape along the limb; everything
+        // else can ignore it. Read live rather than captured, since render() rebuilds
+        // the view matrix every frame.
+        get axis() { return [globe._view[6], globe._view[7], globe._view[8]]; },
+        get cx() { return globe.cx; },
+        get cy() { return globe.cy; },
+        get radius() { return globe.radius; },
+      };
     }
     return this._projector;
   }
