@@ -1,10 +1,16 @@
 /*
- * Orthographic globe: a WebGL raster layer with a 2D vector overlay on top.
+ * Globe: a WebGL raster layer with a 2D vector overlay on top.
  *
  * The raster layer is a single full-screen quad whose fragment shader does the
- * inverse orthographic projection and samples an equirectangular paleogeography
- * texture. Doing it in the shader rather than per-pixel on the CPU is what makes
- * a full-viewport globe redraw cheaply enough to be driven by scrolling.
+ * inverse projection and samples an equirectangular paleogeography texture. Doing
+ * it in the shader rather than per-pixel on the CPU is what makes a full-viewport
+ * globe redraw cheaply enough to be driven by scrolling.
+ *
+ * Two projections are available. 'orthographic' is the globe seen from far away,
+ * centred on state.lon/state.lat, and is what a rotatable map wants. 'spilhaus'
+ * is a fixed Southern Ocean view -- its centre is baked into the shader, so it
+ * ignores state.lon/state.lat entirely; that is the default only because the
+ * existing stories were built against it.
  *
  * The overlay is a plain 2D canvas using the identical camera maths from geo.js,
  * so vectors register with the raster exactly. It draws strokes only -- never
@@ -23,6 +29,7 @@ import {
   spilhausForward,
   spilhausViewMatrix,
 } from './geo.js';
+import { tracePolyline } from '../vendor/deep-time-map/js/polyline.js';
 
 const VERT_SRC = `
 attribute vec2 aPos;
@@ -30,7 +37,12 @@ void main() {
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
-const FRAG_SRC = `
+/*
+ * Shared preamble and epilogue for both projections. Each projection only has to
+ * turn gl_FragCoord into a lon/lat; the texture sampling, antimeridian wrap and
+ * limb feathering are identical either way.
+ */
+const FRAG_HEAD = `
 precision highp float;
 
 uniform vec2  uCentre;     // globe centre in pixels
@@ -45,6 +57,46 @@ uniform float uOpacity;
 
 const float PI = 3.141592653589793;
 
+// Sample the two paleogeography frames at a lon/lat and feather the limb.
+// rho_raw is the normalised distance from the centre, 1.0 at the edge.
+void shade(float lon, float lat, float rho_raw) {
+  // WebGL 1 NPOT textures must not use REPEAT wrapping. The longitudes are
+  // wrapped by fract() rather than a repeating wrap mode so the antimeridian is
+  // still continuous without creating incomplete textures on 3600x1800 maps.
+  float u = fract(lon / (2.0 * PI) + 0.5);
+  float v = clamp(0.5 - lat / PI, 0.0, 1.0);
+  vec2 uv = vec2(u, v);
+
+  vec3 col = mix(texture2D(uTexA, uv).rgb, texture2D(uTexB, uv).rgb, uMix);
+
+  float feather = 1.5 / uRadius;
+  float alpha = smoothstep(1.0, 1.0 - feather, rho_raw) * uOpacity;
+
+  gl_FragColor = vec4(col * alpha, alpha);
+}`;
+
+/*
+ * Orthographic: the globe as seen from infinitely far away, centred wherever the
+ * camera basis points. Inverting it is just reading the unit vector back off the
+ * screen coordinates -- x and y ARE the east and north components, and the third
+ * follows from the vector being unit length. This is the branch that actually uses
+ * uEast/uNorth/uOut, so unlike the Spilhaus branch it responds to state.lon/lat.
+ */
+const ORTHO_FRAG = FRAG_HEAD + `
+void main() {
+  vec2 d = (gl_FragCoord.xy - uCentre) / uRadius;
+  float rho2 = dot(d, d);
+  if (rho2 > 1.0) discard;
+
+  vec3 p = d.x * uEast + d.y * uNorth + sqrt(1.0 - rho2) * uOut;
+
+  float lat = asin(clamp(p.z, -1.0, 1.0));
+  float lon = atan(p.y, p.x);
+
+  shade(lon, lat, sqrt(rho2));
+}`;
+
+const SPILHAUS_FRAG = FRAG_HEAD + `
 // Spilhaus projection parameters
 const float SPILHAUS_SCALE = 0.917;
 const vec2 SPILHAUS_CENTER = vec2(142.0 * PI / 180.0, -71.0 * PI / 180.0);
@@ -72,22 +124,8 @@ void main() {
   float lon = SPILHAUS_CENTER.x + atan(p.x * sinc, 
                    rho * cos(SPILHAUS_CENTER.y) * cos_c - 
                    p.y * sin(SPILHAUS_CENTER.y) * sinc);
-  
-  // WebGL 1 NPOT textures must not use REPEAT wrapping. The longitudes are
-  // wrapped by fract() rather than a repeating wrap mode so the antimeridian is
-  // still continuous without creating incomplete textures on 3600x1800 maps.
-  float u = fract(lon / (2.0 * PI) + 0.5);
-  float v = clamp(0.5 - lat / PI, 0.0, 1.0);
-  vec2 uv = vec2(u, v);
-  
-  vec3 col = mix(texture2D(uTexA, uv).rgb, texture2D(uTexB, uv).rgb, uMix);
-  
-  // Feather the limb
-  float rho_raw = sqrt(rho2);
-  float feather = 1.5 / uRadius;
-  float alpha = smoothstep(1.0, 1.0 - feather, rho_raw) * uOpacity;
-  
-  gl_FragColor = vec4(col * alpha, alpha);
+
+  shade(lon, lat, sqrt(rho2));
 }`;
 
 function compile(gl, type, src) {
@@ -101,8 +139,16 @@ function compile(gl, type, src) {
 }
 
 export class Globe {
-  constructor(container) {
+  /**
+   * @param container    element to fill with the raster and overlay canvases
+   * @param projection   'spilhaus' (default, what the existing stories use) or
+   *                     'orthographic'. Only the orthographic camera responds to
+   *                     state.lon/state.lat; the Spilhaus one is fixed on the
+   *                     Southern Ocean by construction.
+   */
+  constructor(container, { projection = 'spilhaus' } = {}) {
     this.container = container;
+    this.projection = projection;
 
     this.rasterCanvas = document.createElement('canvas');
     this.rasterCanvas.className = 'globe-raster';
@@ -133,6 +179,7 @@ export class Globe {
     this._qb = [0, 0, 0, 1];
     this._q = [0, 0, 0, 1];
     this._m = new Float64Array(9);
+    this._pt = [0, 0, 0];
 
     this._initGL();
     this._resize();
@@ -143,7 +190,8 @@ export class Globe {
     const gl = this.gl;
     const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT_SRC));
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG_SRC));
+    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER,
+      this.projection === 'orthographic' ? ORTHO_FRAG : SPILHAUS_FRAG));
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
       throw new Error('link: ' + gl.getProgramInfoLog(prog));
@@ -304,14 +352,50 @@ export class Globe {
 
   /** Project lon/lat to overlay canvas coords. Returns null if over the horizon. */
   project(lonDeg, latDeg) {
+    if (this.projection === 'orthographic') {
+      lonLatToVec3(lonDeg, latDeg, this._pt);
+      return this.projectVec3(this._pt);
+    }
+
     // Use Spilhaus projection for the Southern Ocean view
     const result = spilhausForward(lonDeg, latDeg);
     if (!result) return null;
-    
+
     const [x, y] = result;
     // Scale and center for display
     const scale = this.radius * 0.5;  // Adjust scale to fit the view
     return [this.cx + x * scale, this.cy - y * scale];
+  }
+
+  /**
+   * Orthographic projection of a unit vector, for overlays that keep their own
+   * pre-converted vertex arrays. Returns [x, y, depth] with depth > 0 on the
+   * visible hemisphere, or null behind the horizon -- an exact test, since depth
+   * is just the component along the view direction.
+   */
+  /**
+   * A deep-time-map projector view of this globe.
+   *
+   * The library's interface is project(vec3); Globe already has a project(lon, lat)
+   * with different semantics, so the adapter keeps both without either shadowing the
+   * other. Memoised because layers ask for it every frame.
+   */
+  get projector() {
+    if (!this._projector) {
+      this._projector = { project: (v) => this.projectVec3(v) };
+    }
+    return this._projector;
+  }
+
+  projectVec3(v) {
+    const m = this._view;
+    const depth = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
+    if (depth <= 0) return null;
+    return [
+      this.cx + (m[0] * v[0] + m[1] * v[1] + m[2] * v[2]) * this.radius,
+      this.cy - (m[3] * v[0] + m[4] * v[1] + m[5] * v[2]) * this.radius,
+      depth,
+    ];
   }
 
   get geometry() {
@@ -345,16 +429,19 @@ export class Globe {
   render() {
     const { age, lon, lat, zoom, opacity } = this.state;
 
-    // Spilhaus projection center is fixed at 71°S, 142°E
-    // But allow override for different views
-    const spilhausLon = lon !== undefined ? lon : 142;
-    const spilhausLat = lat !== undefined ? lat : -71;
-    
     this.radius = Math.min(this.cssWidth, this.cssHeight) * 0.42 * zoom;
     this.cx = this.cssWidth / 2;
     this.cy = this.cssHeight / 2;
 
-    spilhausViewMatrix(spilhausLon, spilhausLat, this._view);
+    if (this.projection === 'orthographic') {
+      viewMatrix(lon, lat, this._view);
+    } else {
+      // Spilhaus projection center is fixed at 71°S, 142°E
+      // But allow override for different views
+      const spilhausLon = lon !== undefined ? lon : 142;
+      const spilhausLat = lat !== undefined ? lat : -71;
+      spilhausViewMatrix(spilhausLon, spilhausLat, this._view);
+    }
     this._renderRaster(age, opacity);
     this._renderOverlay(age);
   }
@@ -426,25 +513,21 @@ export class Globe {
       const m = this._plateMat.get(f.plate);
       if (!m) continue;
 
-      let pen = false;
-      const start = f.offset;
-      const n = f.count;
+      // The plate's rotation already has the camera folded into it, so a coastline
+      // vertex needs one matrix multiply and no trigonometry. One closure per feature,
+      // not per vertex.
+      const project = (v) => {
+        const depth = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
+        if (depth <= 0) return null;
+        return [
+          this.cx + (m[0] * v[0] + m[1] * v[1] + m[2] * v[2]) * R,
+          this.cy - (m[3] * v[0] + m[4] * v[1] + m[5] * v[2]) * R,
+          depth,
+        ];
+      };
+
       // Closed rings repeat their first vertex so the outline joins up.
-      const limit = f.closed ? n + 1 : n;
-
-      for (let k = 0; k < limit; k++) {
-        const idx = (start + (k % n)) * 3;
-        const vx = xyz[idx], vy = xyz[idx + 1], vz = xyz[idx + 2];
-
-        const depth = m[6] * vx + m[7] * vy + m[8] * vz;
-        if (depth <= 0) { pen = false; continue; }
-
-        const px = this.cx + (m[0] * vx + m[1] * vy + m[2] * vz) * R;
-        const py = this.cy - (m[3] * vx + m[4] * vy + m[5] * vz) * R;
-
-        if (pen) ctx.lineTo(px, py);
-        else { ctx.moveTo(px, py); pen = true; }
-      }
+      tracePolyline(ctx, project, xyz, f.offset, f.count, { closed: f.closed });
     }
     ctx.stroke();
     ctx.restore();

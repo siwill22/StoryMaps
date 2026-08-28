@@ -1,0 +1,3 @@
+[submodule "shared/vendor/deep-time-map"]
+	path = shared/vendor/deep-time-map
+	url = https://github.com/siwill22/deep-time-map.git
