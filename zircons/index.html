@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Igneous zircons through time — prototype</title>
+<meta name="description" content="Prototype: mafic and felsic igneous zircon samples (Puetz et al. 2026) reconstructed on a globe, 0-1000 Ma, brightening near their crystallisation age.">
+<link rel="stylesheet" href="css/story.css">
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="stage-layer stage-globe" id="globe"></div>
+  <div class="point-popup" id="point-popup" role="tooltip"></div>
+</div>
+
+<div class="loading" id="loading"><span>Loading reconstruction…</span></div>
+
+<header class="titlecard">
+  <p class="kicker">Prototype</p>
+  <h1>Igneous zircons at <span id="timecode">200</span> Ma</h1>
+  <p class="standfirst">Drag to rotate, scroll to zoom. A sample brightens within 5 Myr of its crystallisation age, then fades but stays visible once formed.</p>
+</header>
+
+<div class="timebar" id="timebar">
+  <button id="play" type="button" aria-label="Play through time">▶</button>
+
+  <!-- The chart and the slider share this column, so they are the same width with the
+       same left edge. That is what lets the chart's marker sit exactly over the thumb:
+       one time axis on this panel, not two. -->
+  <div class="timestack">
+    <div class="timeseries" id="timeseries"></div>
+    <input id="scrub" type="range" min="0" max="1000" step="1" value="800"
+           aria-label="Reconstruction time in Ma, increasing to the left">
+    <span class="ticks"><span>1000</span><span id="ts-note"></span><span>0 Ma</span></span>
+  </div>
+</div>
+
+<aside class="legend" id="legend">
+  <h2>Boundary type</h2>
+  <ul id="legend-items"></ul>
+
+  <h2 class="legend-sub">Plate motion</h2>
+  <ul>
+    <li id="velocity-toggle"><span class="swatch swatch-arrow"></span><span>Velocity arrows</span></li>
+  </ul>
+  <p class="scalebar"><svg id="scale-arrow" width="62" height="10" aria-hidden="true"><line x1="1" y1="5" x2="52" y2="5"/><polygon points="61,5 51,9 51,1"/></svg> <span id="scale-label">10 cm/yr</span></p>
+
+  <h2 class="legend-sub">Igneous zircons <button id="zircon-all" type="button" class="legend-action">none</button></h2>
+  <ul id="zircon-items"></ul>
+  <p class="hint">Bright within 5 Myr of crystallisation age, faint once older; a sample stays on the globe from its age to the present. Counts are cumulative for the current time. Hover for detail, click to keep it open. Rest on a cluster and it fans apart.</p>
+
+  <p class="caveat">
+    Boundaries and continents: <span id="model-credit">…</span> — one plate model, so
+    the trenches sit on the margins they belong to. Continent polygons include the
+    submerged shelf, so they run wider than a coastline.
+  </p>
+  <p class="caveat" id="points-credit"></p>
+  <p class="caveat">
+    The lag-time provenance method used on the companion
+    <a href="../detrital-zircons/">detrital zircon page</a> follows Jian et al. (2022),
+    <em>Journal of Geophysical Research</em> — with thanks to Dongchuan Jian.
+  </p>
+</aside>
+
+<script type="module" src="js/story.js"></script>
+
+</body>
+</html>

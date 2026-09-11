@@ -1,0 +1,499 @@
+/* Igneous zircon prototype ---------------------------------------------------
+ *
+ * A single fixed globe with UI floating over it. Copied from
+ * ../plate-boundaries/css/story.css -- same dark palette as the other story
+ * maps, same layout. Nothing here is zircon-specific; only index.html's IDs
+ * and js/story.js's use of them changed.
+ */
+
+:root {
+  --ink: #e8f0f8;
+  --ink-dim: rgba(232, 240, 248, 0.62);
+  --bg: #070c16;
+  --panel: rgba(9, 16, 28, 0.82);
+  --edge: rgba(143, 212, 240, 0.22);
+  --accent: #8fd4f0;
+
+  /* The slider thumb's width, and therefore the chart's plot inset.
+   *
+   * A range input puts its thumb CENTRE at left + W/2 + fraction * (width - W), because the
+   * thumb has to stay inside the track at both ends. The chart above the slider insets its
+   * plot by W/2 so its marker lands on the thumb. That only works if W is KNOWN, which is
+   * why the thumb is styled here rather than left native -- native widths differ between
+   * browsers. Change this and js/story.js must change with it. */
+  --thumb: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.stage.is-dragging { cursor: grabbing; }
+
+.stage-layer { position: absolute; inset: 0; }
+
+.stage-globe canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.globe-overlay { pointer-events: none; }
+
+/* ---- chrome ------------------------------------------------------------- */
+
+.titlecard {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  max-width: 26rem;
+  padding: 1.6rem 1.8rem;
+  pointer-events: none;
+}
+
+.kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.titlecard h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.standfirst {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+/* ---- time scrubber ------------------------------------------------------ */
+
+.timebar {
+  position: fixed;
+  left: 1.8rem;
+  bottom: 1.4rem;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: min(46rem, calc(100vw - 22rem));
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+}
+
+.timebar button {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.timebar button:hover { background: rgba(143, 212, 240, 0.12); }
+
+/* Chart and slider stacked in one column, so they are the same width with the same left
+ * edge. Without that the marker cannot line up with the thumb. */
+.timestack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.timebar input[type="range"] {
+  width: 100%;
+  margin: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  height: var(--thumb);
+  background: transparent;
+}
+
+/* The track and the thumb are drawn explicitly rather than left to accent-color, because
+ * the chart's geometry depends on knowing the thumb's width. */
+.timebar input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(143, 212, 240, 0.22);
+}
+
+.timebar input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((4px - var(--thumb)) / 2);
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.timebar input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(143, 212, 240, 0.22);
+}
+
+.timebar input[type="range"]::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.timebar input[type="range"]:focus-visible { outline: 1px solid var(--accent); }
+
+.timebar .ticks {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- time series -------------------------------------------------------- */
+
+.timeseries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ts-canvas {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* Mode buttons above the chart, not below it: the chart is the thing, and controls that
+ * sit between the chart and the slider would break the visual join between them. */
+.ts-modes {
+  order: -1;
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+}
+
+.ts-modes button {
+  width: auto;
+  height: auto;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.ts-modes button:hover { color: var(--ink); border-color: var(--accent); }
+
+.ts-modes button.is-on {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.legend {
+  position: fixed;
+  right: 1.4rem;
+  bottom: 1.4rem;
+  z-index: 2;
+  width: 17rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+
+  /* Boundary types plus two zircon rows can still run off a short window, so cap it and
+   * let the panel scroll rather than the page. */
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+}
+
+.legend h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+
+.legend ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.22rem 0;
+  font-size: 0.86rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Toggling a type off dims the row rather than hiding it, so the legend keeps a
+ * stable height and the reader can see what has been switched away. */
+.legend li.is-off { opacity: 0.38; }
+
+.legend .swatch {
+  flex: none;
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.legend-sub {
+  margin-top: 0.9rem !important;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--edge);
+}
+
+/* Velocity swatch: a miniature of the map arrow. */
+.legend .swatch-arrow {
+  position: relative;
+  height: 2px;
+  background: rgba(190, 228, 255, 0.9);
+}
+
+.legend .swatch-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -2.5px;
+  border-left: 6px solid rgba(190, 228, 255, 0.9);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+}
+
+/* Length reference for the arrows -- an arrow field without a scale says nothing
+ * quantitative, and the drawn length is proportional to speed. */
+.scalebar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.scalebar svg { flex: none; overflow: visible; }
+.scalebar line { stroke: rgba(190, 228, 255, 0.9); stroke-width: 1.6; }
+.scalebar polygon { fill: rgba(190, 228, 255, 0.9); }
+
+/* Triangle sitting on the subduction swatch, matching the map symbol. */
+.legend .swatch-sz { position: relative; }
+
+.legend .swatch-sz i {
+  position: absolute;
+  left: 9px;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 7px solid currentColor;
+}
+
+.legend .caveat {
+  margin: 0.9rem 0 0;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--edge);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+
+.legend .caveat + .caveat { border-top: 0; margin-top: 0.5rem; padding-top: 0; }
+
+/* ---- zircon symbols ------------------------------------------------------ */
+
+/* Zircon rows carry a drawn symbol rather than a plain colour chip, matching the
+ * base-metal legend's convention even though there are only two types here (colour
+ * alone would already distinguish them). */
+.legend .swatch-sym {
+  width: 26px;
+  height: 14px;
+  border-radius: 0;
+  background: none;
+  display: grid;
+  place-items: center;
+}
+
+.legend .swatch-sym svg { display: block; overflow: visible; }
+
+.legend-sub .legend-action {
+  float: right;
+  margin-top: -1px;
+  padding: 0 0.35rem;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.legend-sub .legend-action:hover { color: var(--ink); border-color: var(--accent); }
+
+.legend .hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+}
+
+/* ---- zircon popup -------------------------------------------------------- */
+
+.point-popup {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  max-width: 17rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+
+  /* Click-through while merely hovering. A popup that accepts pointer events under the
+   * cursor steals the hover from the canvas beneath it, which makes it flicker between
+   * shown and hidden as the pointer crosses the boundary. */
+  pointer-events: none;
+}
+
+.point-popup.is-visible { opacity: 1; visibility: visible; }
+
+/* Pinned: now it is a panel the reader is reading, so it accepts the pointer. */
+.point-popup.is-pinned {
+  pointer-events: auto;
+  border-color: var(--accent);
+}
+
+.point-popup h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.point-popup .pp-type {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.point-popup dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  margin: 0;
+}
+
+.point-popup dt { color: var(--ink-dim); }
+.point-popup dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.point-popup .pp-ref {
+  margin: 0.45rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--edge);
+  font-size: 0.68rem;
+  color: var(--ink-dim);
+}
+
+.point-popup .pp-pin {
+  margin: 0.4rem 0 0;
+  font-size: 0.66rem;
+  color: var(--ink-dim);
+}
+
+/* ---- loading ------------------------------------------------------------ */
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--ink-dim);
+  font-size: 0.9rem;
+  transition: opacity 0.8s ease;
+}
+
+.loading.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .legend { left: 1rem; right: 1rem; width: auto; bottom: 5.5rem; }
+  .timebar { left: 1rem; right: 1rem; width: auto; }
+  .titlecard { max-width: none; }
+
+  /* Four stacked rows plus the mode buttons is most of a phone screen, and the globe is
+   * the point of the page. The chart goes rather than shrinking to illegibility. */
+  .timeseries { display: none; }
+}
