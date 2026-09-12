@@ -97,6 +97,30 @@ function makeRingSink(out) {
   };
 }
 
+// A point sitting (numerically) exactly at a pole has an undefined longitude -- a
+// coordinate singularity for the clip algorithm below, which expects an explicit
+// boundary vertex there but already has dedicated handling for a ring that merely
+// passes NEAR one: clipAntimeridianLine's own "line crosses a pole" branch (edges
+// whose longitude delta is close to 180 degrees) reconstructs the correct path
+// between two ordinary neighbouring vertices without needing an explicit pole vertex
+// at all. Some reconstructed rings (Antarctica pieces in continents.json, apparently a
+// topology-closure artefact from the GPlates reconstruction) DO include one -- often as
+// an exact duplicate pair -- and that vertex's ill-defined longitude makes the clip's
+// antimeridian cut-point bookkeeping numerically unstable as `centreLonDeg` sweeps
+// through certain values: confirmed empirically, a fine sweep of the real
+// "East Antarctica" ring's `centreLonDeg` produced 204 changes in output piece
+// structure across -180..180, many of them rapid back-and-forth flips within a
+// fraction of a degree while dragging -- the exact "flashing" reported when panning
+// Robinson mode near a pole-touching continent. Dropping the pole vertex reduced that
+// to 3 changes, all one smooth transition as the seam crosses a real vertex, matching
+// every other ring. `crossesSeam`'s own edges never see a dropped point, so the fast
+// path is unaffected; this filter is applied regardless of it since even the un-clipped
+// case draws through a real singular point for no visual benefit.
+const POLE_EPSILON = 1e-4;
+function dropPoleVertices(points) {
+  return points.filter(([, lat]) => 90 - Math.abs(lat) > POLE_EPSILON);
+}
+
 /**
  * Split a closed ring -- `[[lonDeg, latDeg], ...]`, first point repeated as last, same
  * convention `PolygonLayer`'s own rings use -- at the antimeridian relative to
@@ -106,6 +130,7 @@ function makeRingSink(out) {
  * single-element array.
  */
 export function splitRingAtSeam(ring, centreLonDeg) {
+  ring = dropPoleVertices(ring);
   const naive = ring.map(([lon, lat]) => [wrapLon(lon - centreLonDeg), lat]);
   if (!crossesSeam(naive)) return [naive];
 
@@ -132,6 +157,7 @@ export function splitRingAtSeam(ring, centreLonDeg) {
  * winding normalisation -- there is no "inside" to get backwards, only a pen to lift.
  */
 export function splitLineAtSeam(line, centreLonDeg) {
+  line = dropPoleVertices(line);
   const shifted = line.map(([lon, lat]) => [wrapLon(lon - centreLonDeg), lat]);
   if (!crossesSeam(shifted)) return [shifted];
 

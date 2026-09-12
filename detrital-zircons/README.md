@@ -269,6 +269,25 @@ continuous shape with no seam, at several nearby central meridians (180, -180, 1
 in a way not easily reused against a seam-split line for a decorative detail; a
 deliberate simplification, not an oversight.
 
+A second, unrelated bug surfaced after the fix above shipped: panning through certain
+central meridians made Antarctica briefly flash a huge, wrongly-shaped fill. Root cause:
+`continents.json`'s "East Antarctica" ring includes an explicit vertex pair sitting
+exactly at the South Pole (apparently a topology-closure artefact of the GPlates
+reconstruction) -- longitude is undefined at a pole, and that coordinate singularity
+made the clip's antimeridian cut-point bookkeeping numerically unstable as the central
+meridian swept past certain values (confirmed with a fine-grained sweep: 204 spurious
+changes in output shape across a full rotation, several of them rapid flips within a
+fraction of a degree -- exactly the reported flashing). The fix is not a new algorithm:
+`robinsonSeams.js` now drops any vertex within 1e-4 degrees of a pole before clipping,
+since the antimeridian clip already has dedicated, correct handling for a ring that
+merely passes *near* a pole between two ordinary vertices (the standard input shape it
+expects), and the explicit pole vertex was redundant with that. Re-running the same
+sweep after the fix showed 3 changes, all one smooth transition as the seam crosses a
+real vertex -- matching the behaviour of every other (non-pole-touching) ring in the
+dataset. Verified against the live page too: instrumenting the canvas to track the
+on-screen width of the continents fill path while dragging back and forth through the
+exact previously-unstable range showed a tight, consistent width with no outliers.
+
 ## Status
 
 Working: reconstructed continents, boundaries, velocity arrows and the pie-chart sample
