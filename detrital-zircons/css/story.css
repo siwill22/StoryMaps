@@ -94,6 +94,28 @@ html, body {
   color: var(--ink-dim);
 }
 
+/* Sits on its own, top-right -- not part of the legend, so it stays reachable even
+ * with the legend collapsed. Label names the view a click will switch TO, not the
+ * current one (js/story.js flips it after every toggle), matching how a play/pause
+ * button names the action, not the current state. */
+.projection-toggle {
+  position: fixed;
+  top: 1.6rem;
+  right: 1.4rem;
+  z-index: 3;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.projection-toggle:hover { background: rgba(143, 212, 240, 0.12); }
+
 /* ---- time scrubber ------------------------------------------------------ */
 
 .timebar {
@@ -452,6 +474,92 @@ html, body {
   margin-top: 0.3rem;
   font-size: 0.68rem;
   color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- colour-by-class controls ----------------------------------------------
+ *
+ * Three pill buttons (reusing .ts-modes' own look) pick what a pie's fill means: lag
+ * time (the ramp above) or one of the two tectonic-setting classes. Only one of
+ * #age-ramp-wrap / #class-legend / #barham-threshold is ever visible at once -- the
+ * inactive ones are toggled with `hidden` from js/story.js, not CSS alone, since which
+ * one applies depends on the selected mode, not the viewport.
+ */
+.colour-mode {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+
+.colour-mode button {
+  flex: 1;
+  padding: 0.2rem 0;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.colour-mode button:hover { color: var(--ink); border-color: var(--accent); }
+
+.colour-mode button.is-active {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* One row per class -- same swatch/count layout as .legend li, but not clickable (there
+ * is nothing to toggle on/off here, only a key to the current colour mode). */
+.class-legend {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.class-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.15rem 0;
+  font-size: 0.8rem;
+}
+
+.class-legend .swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.class-legend .legend-count { color: var(--ink-dim); }
+
+.barham-threshold {
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+}
+
+.barham-threshold label { display: block; margin-bottom: 0.3rem; }
+
+.barham-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.barham-threshold-row input[type="range"] {
+  flex: 1;
+  cursor: pointer;
+}
+
+.barham-threshold-row span {
+  min-width: 1.6em;
+  text-align: right;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 

@@ -66,6 +66,36 @@ function rgb([r, g, b]) {
   return `rgb(${r | 0}, ${g | 0}, ${b | 0})`;
 }
 
+// Colour by tectonic-setting class instead of lag time: flat fill, one colour per class,
+// rather than a gradient -- a class is one categorical value for the whole sample, there
+// is nothing to sweep. Picked to read clearly against the dark ocean background and to
+// stay distinguishable from each other; there is no established colour convention to
+// follow here the way the lag ramp follows seismic/RdBu.
+export const CAWOOD_COLOURS = { A: '#e0a72e', B: '#5fb9e0', C: '#c25fcf' };
+export const BARHAM_COLOURS = { A: '#2fae7c', B: '#e0623f' };
+
+// Shared by both class modes: a sample with no defined class (Cawood: none should occur;
+// Barham: fewer than 2 dated grains) still gets a glyph, so a reader can see it exists
+// and isn't quietly dropped -- just in a neutral grey rather than a real class colour.
+export const UNCLASSIFIED_COLOUR = 'rgba(150, 160, 170, 0.45)';
+
+export function cawoodColour(cls) {
+  return CAWOOD_COLOURS[cls] ?? UNCLASSIFIED_COLOUR;
+}
+
+/** Barham et al. (2022) ships only continuous statistics (chi_square, percentile); this
+ *  page stores their ratio (percentile / chi_square) and thresholds it here so the split
+ *  can be moved live with a slider rather than fixed at build time. `ratio == null` means
+ *  the sample had fewer than 2 dated grains and has no defined ratio at all. */
+export function barhamClassify(ratio, threshold) {
+  if (ratio == null || !Number.isFinite(ratio)) return null;
+  return ratio > threshold ? 'B' : 'A';
+}
+
+export function barhamColour(cls) {
+  return BARHAM_COLOURS[cls] ?? UNCLASSIFIED_COLOUR;
+}
+
 const DEFAULT_OPTIONS = {
   binWidth: 20,
   radius: 7,      // every pie the same size -- see drawPieGlyphs' own comment on why
@@ -73,6 +103,8 @@ const DEFAULT_OPTIONS = {
   keylineWidth: 0.6,
   highlight: 'rgba(255, 255, 255, 0.95)',
   highlightWidth: 1.6,
+  mode: 'lag',           // 'lag' | 'cawood' | 'barham'
+  barhamThreshold: 20,
 };
 
 /**
@@ -98,6 +130,12 @@ const DEFAULT_OPTIONS = {
  * many control points that gradation has to work with -- finer bins follow the sample's
  * true CDF more closely -- but even the original 100 Myr bins already rendered smoothly
  * once wedges became a gradient; this is a sharpening, not a fix for banding.
+ *
+ * `options.mode` switches what a pie's colour means: 'lag' (default) is the gradient
+ * above; 'cawood'/'barham' instead paint the WHOLE disc a single flat colour for that
+ * sample's tectonic-setting class -- a class is one categorical value per sample, not a
+ * distribution, so there is nothing to sweep a gradient across. Position, size and
+ * hover/spiderfy behaviour are identical in every mode; only the fill changes.
  */
 export function drawPieGlyphs(ctx, layer, options = {}) {
   const o = { ...DEFAULT_OPTIONS, ...options };
@@ -115,28 +153,36 @@ export function drawPieGlyphs(ctx, layer, options = {}) {
     const point = points[i];
     if (!layer.isTypeVisible(point)) continue;
 
-    const spectrum = point.spectrum;
-    if (!spectrum || spectrum.length === 0) continue;
-    const total = spectrum.reduce((sum, pair) => sum + pair[1], 0);
-    if (total <= 0) continue;
-
     const [cx, cy] = p;
     const r = o.radius;
+    let fillStyle;
 
-    // -Math.PI / 2 (12 o'clock) as the start, matching the old wedge sweep's own
-    // orientation; a conic gradient's offset increases clockwise from there, same
-    // direction the old per-bin `angle += slice` walked.
-    const gradient = ctx.createConicGradient(-Math.PI / 2, cx, cy);
-    let cumulative = 0;
-    for (const [binLo, count] of spectrum) {
-      const midFraction = (cumulative + count / 2) / total;
-      gradient.addColorStop(midFraction, lagColour(binLo + o.binWidth / 2));
-      cumulative += count;
+    if (o.mode === 'cawood') {
+      fillStyle = cawoodColour(point.cawood_class);
+    } else if (o.mode === 'barham') {
+      fillStyle = barhamColour(barhamClassify(point.barham_ratio, o.barhamThreshold));
+    } else {
+      const spectrum = point.spectrum;
+      if (!spectrum || spectrum.length === 0) continue;
+      const total = spectrum.reduce((sum, pair) => sum + pair[1], 0);
+      if (total <= 0) continue;
+
+      // -Math.PI / 2 (12 o'clock) as the start, matching the old wedge sweep's own
+      // orientation; a conic gradient's offset increases clockwise from there, same
+      // direction the old per-bin `angle += slice` walked.
+      const gradient = ctx.createConicGradient(-Math.PI / 2, cx, cy);
+      let cumulative = 0;
+      for (const [binLo, count] of spectrum) {
+        const midFraction = (cumulative + count / 2) / total;
+        gradient.addColorStop(midFraction, lagColour(binLo + o.binWidth / 2));
+        cumulative += count;
+      }
+      fillStyle = gradient;
     }
 
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = fillStyle;
     ctx.fill();
     ctx.strokeStyle = o.keyline;
     ctx.lineWidth = o.keylineWidth;

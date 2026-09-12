@@ -22,6 +22,8 @@
   <p class="standfirst">Drag to rotate, scroll to zoom. Each pie is one sample's own lag-time spectrum (grain age minus depositional age), swept clockwise from short lag to long lag and coloured by the lag-time ramp. A sample appears for 5 Myr around its depositional age, then disappears.</p>
 </header>
 
+<button id="projection-toggle" class="projection-toggle" type="button" aria-pressed="false">Robinson view</button>
+
 <div class="timebar" id="timebar">
   <div class="timebar-body" id="timebar-body">
     <button id="play" type="button" aria-label="Play through time">▶</button>
@@ -55,9 +57,30 @@
 
     <h2 class="legend-sub">Detrital zircon samples</h2>
     <ul id="sample-items"></ul>
-    <div class="age-ramp" id="age-ramp"></div>
-    <p class="age-ramp-ticks"><span>0 Myr lag</span><span>250</span><span>500+</span></p>
-    <p class="hint">Every pie is the same size. The colour sweep around each pie is that sample's own lag-time distribution, from the ramp above. A sample is visible for 5 Myr around its depositional age only. Hover for detail (including Cawood and Barham tectonic-setting classes), click to keep it open. Rest on a cluster and it fans apart.</p>
+
+    <div class="colour-mode" id="colour-mode" role="radiogroup" aria-label="Colour pies by">
+      <button type="button" class="is-active" data-mode="lag" aria-pressed="true">Lag time</button>
+      <button type="button" data-mode="cawood" aria-pressed="false">Cawood</button>
+      <button type="button" data-mode="barham" aria-pressed="false">Barham</button>
+    </div>
+
+    <div id="age-ramp-wrap">
+      <div class="age-ramp" id="age-ramp"></div>
+      <p class="age-ramp-ticks"><span>0 Myr lag</span><span>250</span><span>500+</span></p>
+    </div>
+
+    <ul class="class-legend" id="class-legend" hidden></ul>
+
+    <div class="barham-threshold" id="barham-threshold" hidden>
+      <label for="barham-threshold-slider">Barham A/B threshold (percentile ÷ χ²)</label>
+      <div class="barham-threshold-row">
+        <input id="barham-threshold-slider" type="range" min="1" max="100" step="1" value="20"
+               aria-label="Barham tectonic-setting threshold">
+        <span id="barham-threshold-value">20</span>
+      </div>
+    </div>
+
+    <p class="hint">Every pie is the same size. Hover for detail, click to keep it open. Rest on a cluster and it fans apart. Colour above shows lag time by default; switch to Cawood or Barham to colour by tectonic-setting class instead -- Barham's split is a slider, not fixed.</p>
 
     <p class="caveat">
       Boundaries and continents: <span id="model-credit">…</span> — one plate model, so

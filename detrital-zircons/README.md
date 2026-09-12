@@ -122,22 +122,33 @@ project did not audit or fix either function, only call it).
 - **Cawood (`cawood_class`, A/B/C)**: `Zircons.tectonic_category()`, following Cawood et
   al. (2012), thresholds the same lag-time CDF this page's pies already visualise (short
   lag concentrated near the fast end of the CDF vs. spread across it). Distribution
-  across the 16,477 samples on this page: A 8,927, C 4,510, B 3,040.
-- **Barham (`barham_class`, A/B)**: `Zircons.tectonic_fingerprint()`, following Barham et
-  al. (2022, *EPSL*), itself returns two continuous statistics (`chi_square`,
-  `percentile`) rather than a class -- the A/B split used here (`percentile /
-  chi_square > 20` -> `'B'`, else `'A'`) is the threshold from the user's own
-  classification-comparison notebook (`~/GIT/zircons/zircon_class_comparison.ipynb`),
-  not invented for this page. A sample with fewer than 2 dated grains has no defined
-  fingerprint and is left with no `barham_class` at all (107 of 16,477 samples) rather
-  than defaulting it to 'A' as if the statistic existed. Distribution among the rest: A
-  8,674, B 7,696.
+  across the 16,477 samples on this page: A 8,927, C 4,510, B 3,040. A fixed
+  classification, no free parameter.
+- **Barham (`barham_ratio`)**: `Zircons.tectonic_fingerprint()`, following Barham et al.
+  (2022, *EPSL*), itself returns two continuous statistics (`chi_square`, `percentile`)
+  rather than a class -- this page ships their ratio (`percentile / chi_square`)
+  unclassified, and `js/story.js` thresholds it live (see below) rather than baking one
+  split in at build time. 20 -- the split from the user's own classification-comparison
+  notebook (`~/GIT/zircons/zircon_class_comparison.ipynb`) -- is only the slider's
+  starting position. A sample with fewer than 2 dated grains has no defined ratio at all
+  (107 of 16,477 samples, `null`) rather than defaulting to a class as if the statistic
+  existed.
 
-Both classes are display-only for now -- they appear in the hover/pin popup
-(`js/story.js`'s `POPUP_ROWS`) but do not drive any visual encoding of their own (no
-outline colour, no filter). Wedge colour and position are still entirely the lag-time
-pie described above; a reader who wants to see WHERE the "A" samples cluster currently
-has to click through them one at a time.
+**Colour by class, not just lag time.** Three pill buttons above the age ramp ("Lag
+time" / "Cawood" / "Barham") switch what a pie's fill means, wired in
+`js/story.js`'s `buildColourModeControl()` and drawn by `js/pieLayer.js`'s
+`drawPieGlyphs(..., { mode })`. Lag time keeps the conic-gradient spectrum described
+above; Cawood and Barham instead paint the WHOLE pie one flat colour for that sample's
+class (a class is one categorical value per sample, there is nothing to sweep a
+gradient across) and swap the age ramp for a small legend of class swatches + counts
+(over the whole 16,477-sample dataset, not just samples currently in their 5 Myr
+window -- a class doesn't depend on time, so a live count would only be reporting on
+the window, not the classification). Selecting Barham also reveals a threshold slider
+(1-100, default 20); dragging it reclassifies every pie AND the class-legend counts AND
+the hover/pin popup's own Barham row live, all from the one `barham_ratio` shipped in
+`points.json` -- nothing is recomputed server-side. A sample with no defined class
+(Barham's 107 sub-2-grain samples) draws in a neutral grey rather than being silently
+dropped from the layer.
 
 ## Why a custom pie layer, not the deposit/zircon symbol renderer
 
@@ -192,6 +203,72 @@ a narrow one: below 900px wide the legend's max-height is now capped at 42vh (wa
 effectively the full desktop cap of `calc(100vh - 9rem)`, which on a narrow-but-tall
 window left almost no globe visible even before this section existed).
 
+## Globe / Robinson projection toggle
+
+The button top-right (`#projection-toggle`) switches the whole page between the
+rotatable orthographic globe and a flat, pannable **Robinson projection**, via a new
+`Globe.setProjection()` in the *shared* `shared/js/globe.js` -- available to every page
+in this family, not just this one. Robinson has no camera or horizon, only a central
+meridian (dragging pans it; scroll-to-zoom is unchanged; vertical drag has no effect,
+since Robinson has no tilt) -- this needed no changes to this page's own drag handler,
+since it already just adjusts `view.lon`/`view.lat` and lets `Globe.render()` decide
+what to do with them per projection.
+
+Robinson has no closed-form inverse, so `shared/js/globe.js`'s new `ROBINSON_FRAG`
+WebGL shader inverts the same published Robinson scale-factor table (Snyder 1993, also
+`shared/js/geo.js`'s `ROBINSON_TABLE`) per pixel via a 19-row lookup + linear
+interpolation, rather than a formula -- this is genuine raster reprojection, ready for
+any page that loads real paleogeography textures via `Globe.loadTextures()`. This page
+does not (its ocean is a flat vector fill, its continents a vector `PolygonLayer`), so
+in practice the shader draws nothing here either way -- the Robinson-shaped ocean
+outline visible on this page comes from `js/story.js`'s own `traceRobinsonOutline()`,
+which traces the boundary with `globe.project()` instead.
+
+The sample pies project through `globe.projector`/`globe.project()` unchanged in either
+mode -- a pie glyph is a single point, so an independent per-point wrap near the seam
+can only flip which side it renders on for one frame, never stretch a shape across the
+map. Velocity arrows are NOT exempt, despite being short (a few degrees of arc at
+most): a first pass assumed they were too small to ever straddle the seam and left them
+on the same unchanged path, but a two-point segment with its base on one side of the
+seam and its tip on the other still gets each end independently wrapped by
+`Globe.project()`, so the "short hop" becomes a line stretching across the whole map --
+reported directly ("the dateline wrapping issue makes it horrible... for the vector
+arrows there are still many instances"). Fixed the same way as the continents/boundary
+bug, but without needing the full ring/line clip (an arrow is only ever two points, so
+there is nothing to clip): `js/story.js`'s `drawVelocitiesRobinson()` reconstructs the
+tip's delta relative to the base's own wrapped delta (`baseDelta + wrapLon(tipLon -
+baseLon)`, never re-wrapped independently) and projects both ends with
+`Globe.projectDelta()`. Verified with a pixel-level scan across a 40-frame scrub (no
+row of the canvas contains a long run of arrow-coloured pixels) and visually at the same
+four dateline-adjacent central meridians used for the continents/boundaries fix.
+Continents and boundaries are NOT drawn through the vendored
+`PolygonLayer`/`BoundarySeries` in Robinson mode, though: a filled continent or a long
+boundary segment CAN cross the seam, and a first pass of this feature shipped with
+exactly that bug -- any ring or line straddling the current central meridian's
+antimeridian drew a spurious seam clear across the map (the sibling Geode project's own
+first flat-map mode, Plate Carree/ADR-0003, had deferred this same problem rather than
+solving it, for reference). Fixed properly,
+not worked around: `shared/vendor/d3-geo-clip/` is a trimmed, dependency-free port of
+[d3-geo](https://github.com/d3/d3-geo)'s antimeridian clip-and-rejoin algorithm -- the
+standard, widely-used solution to this exact problem (also what d3-geo-projection's own
+Robinson implementation is built on) -- and `shared/js/robinsonSeams.js` is the small
+adapter that feeds this page's own already-reconstructed ring/line coordinates through
+it. `js/story.js`'s `drawContinentsRobinson()`/`drawBoundariesRobinson()` read
+`PolygonLayer`/`BoundaryLayer`'s own already-reconstructed `xyz`/ring-or-feature
+metadata from outside those vendored classes (the same reach-in-and-parallel-draw
+pattern `js/pieLayer.js` already uses for `PointLayer`, not a change to either vendored
+file), split each ring/line at the seam, and project the resulting pieces with
+`Globe.projectDelta()` -- a new method that takes an already-safe longitude delta
+instead of an absolute longitude, since re-deriving and re-wrapping the delta from an
+absolute longitude is exactly what reintroduces the seam (see that method's own
+comment). Verified against the real dateline: centred directly over Siberia/Alaska,
+which genuinely straddles it, the landmass and its boundary lines render as one
+continuous shape with no seam, at several nearby central meridians (180, -180, 170,
+-170). Subduction-polarity triangles are not drawn on boundaries in Robinson mode --
+`BoundaryLayer`'s own triangle placement is tied to its internal `tracePolyline()` call
+in a way not easily reused against a seam-split line for a decorative detail; a
+deliberate simplification, not an oversight.
+
 ## Status
 
 Working: reconstructed continents, boundaries, velocity arrows and the pie-chart sample
@@ -201,7 +278,29 @@ lag-time and tectonic-class detail, live counts that track the window correctly 
 separate page loads (2634 samples at 0 Ma, 354 at 100 Ma, 13 at 842 Ma -- matching an
 independent count straight from points.json), uniform pie size, the narrower colour-ramp
 legend, collapsible legend/timebar panels on both narrow and wide windows, and no
-console errors during sustained playback.
+console errors during sustained playback. The three colour-by-class modes were each
+verified with a screenshot and by reading pixel colours back off the canvas: Cawood's
+three flat colours and legend counts (8,927/3,040/4,510) match the distribution above
+exactly; Barham's at the default threshold (8,674/7,696/107) likewise; moving the
+threshold slider to 5 live-recomputed both the map and the legend counts (5,610/10,760/
+107) and the hover popup's own Barham row picked up the new threshold immediately.
+
+The globe/Robinson toggle was verified the same way: switching projection, dragging to
+pan the central meridian, scroll-zooming, and switching back all produced zero console
+errors and the expected screenshots (continents, boundaries and pies all correctly
+reprojected, oval Robinson outline, arrow field covering the whole world rather than
+one hemisphere since Robinson has no horizon to cull against); a hovered pie's popup
+still opened correctly in Robinson mode, with the right sample's detail. The
+antimeridian fix was verified separately and specifically: centred directly over the
+real dateline at several nearby central meridians (180, -180, 170, -170), over the one
+landmass that actually straddles it (Siberia/Alaska) -- continent fill and boundary
+lines both render as one continuous shape with no seam. A scrub-through-time
+performance check in Robinson mode (60 frames) averaged 18.97ms/frame against 16.86ms
+in orthographic mode over the same scrub -- a modest, expected overhead from the
+per-ring lon/lat conversion and seam check, not a concern for a prototype. The velocity
+arrow fix was verified the same way, plus a pixel scan across a 40-frame scrub at the
+worst-case central meridian (180) for any long run of arrow-coloured pixels in a single
+canvas row -- none found.
 
 Only `data/` is gitignored (regenerated by the build scripts above); the rest of this
 page (this README, `build/`, `css/`, `index.html`, `js/`) is tracked.

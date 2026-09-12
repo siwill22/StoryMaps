@@ -272,7 +272,7 @@ export function spilhausInverse(x, y) {
 
 /**
  * Generate points for a Spilhaus grid (meridians and parallels).
- * 
+ *
  * @param {number} lonStep - Longitude step in degrees
  * @param {number} latStep - Latitude step in degrees
  * @returns {Object} Object with meridians and parallels arrays
@@ -280,7 +280,7 @@ export function spilhausInverse(x, y) {
 export function spilhausGrid(lonStep = 30, latStep = 15) {
   const meridians = [];
   const parallels = [];
-  
+
   // Generate meridians (lines of constant longitude)
   for (let lon = -180; lon <= 180; lon += lonStep) {
     const points = [];
@@ -290,7 +290,7 @@ export function spilhausGrid(lonStep = 30, latStep = 15) {
     }
     if (points.length > 1) meridians.push(points);
   }
-  
+
   // Generate parallels (lines of constant latitude)
   for (let lat = -90; lat <= 90; lat += latStep) {
     const points = [];
@@ -300,6 +300,88 @@ export function spilhausGrid(lonStep = 30, latStep = 15) {
     }
     if (points.length > 1) parallels.push(points);
   }
-  
+
   return { meridians, parallels };
+}
+
+/* ---- Robinson projection -------------------------------------------------- */
+
+/**
+ * Robinson projection scale factors (Snyder 1993, "Map Projections: A Working
+ * Manual", table VII), at latitude 0-90 in 5 degree steps. X shrinks and Y grows
+ * moving toward the pole -- the source of the projection's flattened-oval
+ * outline. The same published table used by e.g. d3-geo-projection and PROJ; it
+ * is not derived here, only interpolated between (linearly -- see
+ * robinsonFactors()'s own note on why that is an acceptable simplification).
+ */
+export const ROBINSON_TABLE = [
+  [0, 1.0000, 0.0000], [5, 0.9986, 0.0620], [10, 0.9954, 0.1240],
+  [15, 0.9900, 0.1860], [20, 0.9822, 0.2480], [25, 0.9730, 0.3100],
+  [30, 0.9600, 0.3720], [35, 0.9427, 0.4340], [40, 0.9216, 0.4958],
+  [45, 0.8962, 0.5571], [50, 0.8679, 0.6176], [55, 0.8350, 0.6769],
+  [60, 0.7986, 0.7346], [65, 0.7597, 0.7903], [70, 0.7186, 0.8435],
+  [75, 0.6732, 0.8936], [80, 0.6213, 0.9394], [85, 0.5722, 0.9761],
+  [90, 0.5322, 1.0000],
+];
+
+// Overall scale so a full 180 degrees of longitude at the equator maps to
+// ROBINSON_XSCALE * PI projection units, and the pole sits at ROBINSON_YSCALE --
+// the standard normalisation for this table. GlobeVec3ToRobinson()/the GLSL
+// shader in globe.js both share these same two constants, so map and legend
+// (and the WebGL raster and the vector overlays) cannot drift out of proportion
+// with each other.
+export const ROBINSON_XSCALE = 0.8487;
+export const ROBINSON_YSCALE = 1.3523;
+
+/**
+ * Linear-interpolated [xFactor, yFactor] at |lat| degrees (0-90).
+ *
+ * Real Robinson implementations often use a cubic/Bessel interpolation across
+ * this table for a slightly smoother curve; linear across 5 degree steps is
+ * visually indistinguishable at the zoom levels this globe is viewed at, and
+ * matches what the GLSL inverse (globe.js's ROBINSON_FRAG) can cheaply invert
+ * per-pixel without a more elaborate root-find.
+ */
+function robinsonFactors(absLatDeg) {
+  const clamped = Math.max(0, Math.min(90, absLatDeg));
+  const i = Math.min(ROBINSON_TABLE.length - 2, Math.floor(clamped / 5));
+  const [lat0, x0, y0] = ROBINSON_TABLE[i];
+  const [, x1, y1] = ROBINSON_TABLE[i + 1];
+  const t = (clamped - lat0) / 5;
+  return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+}
+
+/**
+ * Forward Robinson projection, centred on `centreLonDeg` (the pannable central
+ * meridian -- Robinson has no camera tilt, so latitude plays no part in centring
+ * the view the way it does for the orthographic globe). Returns [x, y] in the
+ * projection's own unit system (x up to +-ROBINSON_XSCALE*PI, y up to
+ * +-ROBINSON_YSCALE) -- Globe.project() scales this to pixels the same way it
+ * scales spilhausForward's output, via a single R factor so the two projections'
+ * apparent size matches when a page toggles between them.
+ */
+export function robinsonForward(lonDeg, latDeg, centreLonDeg = 0) {
+  let dLon = lonDeg - centreLonDeg;
+  dLon = ((dLon + 180) % 360 + 360) % 360 - 180;
+  return robinsonForwardDelta(dLon, latDeg);
+}
+
+/**
+ * Same as robinsonForward(), but takes a longitude DELTA already known to be safe
+ * (already within the map's own -180..180 span relative to whatever centre it was
+ * measured from) instead of an absolute longitude to be wrapped. robinsonForward's own
+ * wrap picks a single canonical representative for the seam itself (+180 and -180 are
+ * the same point on the sphere, and the wrap formula always resolves that point to
+ * -180) -- fine for an ordinary point, but wrong for a piece of geometry that has
+ * already been split at the seam and approaches it from the +180 side specifically:
+ * re-deriving its delta by subtracting centreLonDeg and re-wrapping would silently
+ * flip it back to -180, reintroducing the exact jump the split was meant to remove.
+ * `shared/js/robinsonSeams.js` is the caller that needs this -- it already computed a
+ * safe, unambiguous delta during clipping and must not have it re-wrapped afterwards.
+ */
+export function robinsonForwardDelta(dLonDeg, latDeg) {
+  const [xFactor, yFactor] = robinsonFactors(Math.abs(latDeg));
+  const x = ROBINSON_XSCALE * xFactor * (dLonDeg * DEG);
+  const y = ROBINSON_YSCALE * yFactor * (latDeg < 0 ? -1 : 1);
+  return [x, y];
 }

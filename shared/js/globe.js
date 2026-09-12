@@ -6,16 +6,31 @@
  * it in the shader rather than per-pixel on the CPU is what makes a full-viewport
  * globe redraw cheaply enough to be driven by scrolling.
  *
- * Two projections are available. 'orthographic' is the globe seen from far away,
- * centred on state.lon/state.lat, and is what a rotatable map wants. 'spilhaus'
- * is a fixed Southern Ocean view -- its centre is baked into the shader, so it
- * ignores state.lon/state.lat entirely; that is the default only because the
- * existing stories were built against it.
+ * Three projections are available. 'orthographic' is the globe seen from far
+ * away, centred on state.lon/state.lat, and is what a rotatable map wants.
+ * 'spilhaus' is a fixed Southern Ocean view -- its centre is baked into the
+ * shader, so it ignores state.lon/state.lat entirely; that is the default only
+ * because the existing stories were built against it. 'robinson' is a flat,
+ * pannable world map (state.lon sets the central meridian; state.lat is
+ * unused, there is no tilt) -- unlike the other two it has no closed-form
+ * inverse, so its shader inverts a standard published lookup table instead of
+ * a formula (see ROBINSON_FRAG's own comment). setProjection() switches
+ * between projections at runtime, compiling each one's program once and
+ * caching it.
  *
  * The overlay is a plain 2D canvas using the identical camera maths from geo.js,
  * so vectors register with the raster exactly. It draws strokes only -- never
  * filled polygons -- which sidesteps the awkward business of clipping filled
- * shapes to the horizon, since the raster already supplies the fill.
+ * shapes to the horizon, since the raster already supplies the fill. (Robinson
+ * has no horizon, so this does not apply to it the same way -- see the `axis`
+ * getter on `projector` below: it reports no axis at all in Robinson mode,
+ * which the vendored PolygonLayer already treats as "behaves like a
+ * polyline", i.e. still fills, just without horizon-specific culling. A ring
+ * or line that straddles the antimeridian relative to the current central
+ * meridian is a SEPARATE problem from the horizon -- see
+ * shared/js/robinsonSeams.js, which a page's own overlay code is expected to
+ * use for anything long/large enough to actually cross it; `projectDelta()`
+ * below is that module's other half.)
  */
 
 import {
@@ -28,6 +43,11 @@ import {
   viewMatrix,
   spilhausForward,
   spilhausViewMatrix,
+  robinsonForward,
+  robinsonForwardDelta,
+  ROBINSON_TABLE,
+  ROBINSON_XSCALE,
+  ROBINSON_YSCALE,
 } from './geo.js';
 import { tracePolyline } from '../vendor/deep-time-map/js/polyline.js';
 
@@ -128,6 +148,68 @@ void main() {
   shade(lon, lat, sqrt(rho2));
 }`;
 
+// The Robinson table's X/Y scale factors, written as GLSL array-assignment
+// statements from geo.js's ROBINSON_TABLE -- the one place those numbers are
+// transcribed, so the shader's inverse projection and the JS-side forward
+// projection (used by vector overlays) can never drift apart. GLSL ES 1.00 (the
+// WebGL1 shading language) has no array-literal syntax, only per-element
+// assignment.
+const ROBINSON_TABLE_GLSL = ROBINSON_TABLE
+  .map(([, x, y], i) => `  rx[${i}] = ${x.toFixed(4)}; ry[${i}] = ${y.toFixed(4)};`)
+  .join('\n');
+
+/*
+ * Robinson: a fixed pseudo-cylindrical world map, not a camera -- there is no
+ * horizon and no tilt, only a pannable central meridian (uCenterLon). Robinson
+ * has no closed-form inverse, so the standard approach (also what d3-geo-
+ * projection and PROJ do on the CPU) is table lookup + interpolation: `absY`
+ * (the fragment's distance from the equator, normalised) is monotonic in
+ * |latitude|, so a linear search over the 18 five-degree bands finds where it
+ * falls, and both latitude and the X scale factor are interpolated within that
+ * band. The `for` loop's bound is a compile-time constant (18) specifically
+ * because GLSL ES 1.00 only allows indexing an array by a loop variable inside
+ * a loop of that restricted shape.
+ */
+const ROBINSON_FRAG = FRAG_HEAD + `
+const float ROBINSON_XSCALE = ${ROBINSON_XSCALE};
+const float ROBINSON_YSCALE = ${ROBINSON_YSCALE};
+
+uniform float uCenterLon;
+
+void main() {
+  vec2 d = (gl_FragCoord.xy - uCentre) / uRadius;
+
+  float absY = abs(d.y) / ROBINSON_YSCALE;
+  if (absY > 1.0) discard;
+
+  float rx[19];
+  float ry[19];
+${ROBINSON_TABLE_GLSL}
+
+  float lat = 0.0;
+  float xFactor = 1.0;
+  bool found = false;
+  for (int i = 0; i < 18; i++) {
+    if (!found && absY >= ry[i] && absY <= ry[i + 1]) {
+      float t = (absY - ry[i]) / (ry[i + 1] - ry[i]);
+      lat = (float(i) + t) * 5.0 * PI / 180.0;
+      xFactor = rx[i] + (rx[i + 1] - rx[i]) * t;
+      found = true;
+    }
+  }
+  if (!found) discard;
+
+  float boundaryX = ROBINSON_XSCALE * xFactor * PI;
+  if (abs(d.x) > boundaryX) discard;
+
+  float dLon = d.x / (ROBINSON_XSCALE * xFactor);
+  float signedLat = d.y < 0.0 ? -lat : lat;
+  float lon = uCenterLon + dLon;
+
+  float rho_raw = max(abs(d.x) / boundaryX, absY);
+  shade(lon, signedLat, rho_raw);
+}`;
+
 function compile(gl, type, src) {
   const sh = gl.createShader(type);
   gl.shaderSource(sh, src);
@@ -141,10 +223,12 @@ function compile(gl, type, src) {
 export class Globe {
   /**
    * @param container    element to fill with the raster and overlay canvases
-   * @param projection   'spilhaus' (default, what the existing stories use) or
-   *                     'orthographic'. Only the orthographic camera responds to
-   *                     state.lon/state.lat; the Spilhaus one is fixed on the
-   *                     Southern Ocean by construction.
+   * @param projection   'spilhaus' (default, what the existing stories use),
+   *                     'orthographic' or 'robinson'. Only the orthographic
+   *                     camera responds to state.lat (tilt); Spilhaus is fixed
+   *                     on the Southern Ocean by construction; Robinson has no
+   *                     camera at all, only a pannable central meridian, which
+   *                     it reads from state.lon the same way orthographic does.
    */
   constructor(container, { projection = 'spilhaus' } = {}) {
     this.container = container;
@@ -181,6 +265,11 @@ export class Globe {
     this._m = new Float64Array(9);
     this._pt = [0, 0, 0];
 
+    // One compiled program per projection, built lazily and cached -- switching
+    // projection at runtime (setProjection()) just changes which cached program
+    // _renderRaster() uses, rather than recompiling every toggle.
+    this._programs = new Map();
+
     this._initGL();
     this._resize();
     window.addEventListener('resize', () => { this._resize(); this.render(); });
@@ -188,37 +277,64 @@ export class Globe {
 
   _initGL() {
     const gl = this.gl;
+
+    this._quadBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this._quadBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    this._ensureProgram(this.projection);
+    this.blankTex = this._makeTexture(null);
+  }
+
+  /** Compiles (once) and caches the program for one projection's fragment
+   *  shader. Uniform locations and the vertex attribute location are cached
+   *  per-program, not globally -- both are only valid against the specific
+   *  linked program they came from. */
+  _ensureProgram(name) {
+    let entry = this._programs.get(name);
+    if (entry) return entry;
+
+    const gl = this.gl;
+    const fragSrc = name === 'orthographic' ? ORTHO_FRAG
+                   : name === 'robinson' ? ROBINSON_FRAG
+                   : SPILHAUS_FRAG;
+
     const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT_SRC));
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER,
-      this.projection === 'orthographic' ? ORTHO_FRAG : SPILHAUS_FRAG));
+    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, fragSrc));
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
       throw new Error('link: ' + gl.getProgramInfoLog(prog));
     }
-    gl.useProgram(prog);
-    this.prog = prog;
 
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, 'aPos');
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-    this.u = {};
-    for (const n of ['uCentre', 'uRadius', 'uEast', 'uNorth', 'uOut',
+    const attribLoc = gl.getAttribLocation(prog, 'aPos');
+    const uniforms = {};
+    // uCenterLon only exists in ROBINSON_FRAG; getUniformLocation returns null
+    // for the others, and every gl.uniform*() call below silently no-ops on a
+    // null location, so one shared list is fine for all three programs.
+    for (const n of ['uCentre', 'uRadius', 'uEast', 'uNorth', 'uOut', 'uCenterLon',
                      'uTexA', 'uTexB', 'uMix', 'uOpacity']) {
-      this.u[n] = gl.getUniformLocation(prog, n);
+      uniforms[n] = gl.getUniformLocation(prog, n);
     }
 
-    gl.uniform1i(this.u.uTexA, 0);
-    gl.uniform1i(this.u.uTexB, 1);
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    entry = { prog, uniforms, attribLoc };
+    this._programs.set(name, entry);
+    return entry;
+  }
 
-    this.blankTex = this._makeTexture(null);
+  /** Switch projection at runtime (e.g. a UI toggle button). Compiles the new
+   *  projection's program on first use, then just flips which cached program
+   *  the next render() call picks up -- callers still need to call render() (or
+   *  scheduleRender()) themselves afterwards, same as any other state change. */
+  setProjection(name) {
+    if (this.projection === name) return;
+    this._ensureProgram(name);
+    this.projection = name;
+    this._projector = null;   // the projector getter memoises per-projection closures
   }
 
   _makeTexture(image) {
@@ -350,11 +466,19 @@ export class Globe {
 
   /* ---- projection helpers used by overlays ------------------------------ */
 
-  /** Project lon/lat to overlay canvas coords. Returns null if over the horizon. */
+  /** Project lon/lat to overlay canvas coords. Returns null if over the horizon
+   *  (meaningless for Robinson, which has no horizon -- every lon/lat lands
+   *  somewhere, though it may fall outside the projection's own oval outline;
+   *  see projectVec3() for that boundary test). */
   project(lonDeg, latDeg) {
     if (this.projection === 'orthographic') {
       lonLatToVec3(lonDeg, latDeg, this._pt);
       return this.projectVec3(this._pt);
+    }
+
+    if (this.projection === 'robinson') {
+      const [x, y] = robinsonForward(lonDeg, latDeg, this.state.lon ?? 0);
+      return [this.cx + x * this._robinsonR, this.cy - y * this._robinsonR];
     }
 
     // Use Spilhaus projection for the Southern Ocean view
@@ -365,6 +489,15 @@ export class Globe {
     // Scale and center for display
     const scale = this.radius * 0.5;  // Adjust scale to fit the view
     return [this.cx + x * scale, this.cy - y * scale];
+  }
+
+  /** Robinson only: project a longitude DELTA already known to be safe (see
+   *  robinsonForwardDelta's own comment) instead of an absolute longitude to be
+   *  re-derived and re-wrapped. Used by shared/js/robinsonSeams.js's antimeridian-split
+   *  ring/line pieces, which must not have their already-correct delta undone. */
+  projectDelta(dLonDeg, latDeg) {
+    const [x, y] = robinsonForwardDelta(dLonDeg, latDeg);
+    return [this.cx + x * this._robinsonR, this.cy - y * this._robinsonR];
   }
 
   /**
@@ -387,8 +520,15 @@ export class Globe {
         project: (v) => globe.projectVec3(v),
         // Filled layers need the view axis to close a shape along the limb; everything
         // else can ignore it. Read live rather than captured, since render() rebuilds
-        // the view matrix every frame.
-        get axis() { return [globe._view[6], globe._view[7], globe._view[8]]; },
+        // the view matrix every frame. Robinson has no horizon to close a shape
+        // against, so it reports no axis at all -- polygons.js's own fallback for
+        // that ("no axis: behaves like a polyline") still fills every projectable
+        // vertex, it just skips the horizon-specific visibility culling and
+        // limb-clamping that only make sense for a camera projection.
+        get axis() {
+          if (globe.projection === 'robinson') return undefined;
+          return [globe._view[6], globe._view[7], globe._view[8]];
+        },
         get cx() { return globe.cx; },
         get cy() { return globe.cy; },
         get radius() { return globe.radius; },
@@ -398,6 +538,15 @@ export class Globe {
   }
 
   projectVec3(v) {
+    if (this.projection === 'robinson') {
+      const lat = Math.asin(Math.max(-1, Math.min(1, v[2]))) / DEG;
+      const lon = Math.atan2(v[1], v[0]) / DEG;
+      const [x, y] = robinsonForward(lon, lat, this.state.lon ?? 0);
+      // No horizon in Robinson -- depth is only ever consumed as a >0 visibility
+      // test elsewhere, so a constant stands in for "always in front".
+      return [this.cx + x * this._robinsonR, this.cy - y * this._robinsonR, 1];
+    }
+
     const m = this._view;
     const depth = m[6] * v[0] + m[7] * v[1] + m[8] * v[2];
     if (depth <= 0) return null;
@@ -445,6 +594,13 @@ export class Globe {
 
     if (this.projection === 'orthographic') {
       viewMatrix(lon, lat, this._view);
+    } else if (this.projection === 'robinson') {
+      // No camera matrix -- Robinson has no tilt, only a pannable central
+      // meridian, read directly off state.lon by project()/projectVec3(). This
+      // is the scale factor that makes a full 180 degrees of longitude at the
+      // equator span `this.radius` pixels, so Robinson and orthographic read as
+      // comparably sized when a page toggles between them.
+      this._robinsonR = this.radius / (ROBINSON_XSCALE * Math.PI);
     } else {
       // Spilhaus projection center is fixed at 71°S, 142°E
       // But allow override for different views
@@ -477,15 +633,24 @@ export class Globe {
     const tb = this.textures.get(b.age)?.tex || ta;
 
     const m = this._view;
-    gl.useProgram(this.prog);
-    gl.uniform2f(this.u.uCentre, this.cx * this.dpr,
+    const { prog, uniforms: u, attribLoc } = this._ensureProgram(this.projection);
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this._quadBuffer);
+    gl.enableVertexAttribArray(attribLoc);
+    gl.vertexAttribPointer(attribLoc, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform1i(u.uTexA, 0);
+    gl.uniform1i(u.uTexB, 1);
+    gl.uniform2f(u.uCentre, this.cx * this.dpr,
       (this.cssHeight - this.cy) * this.dpr);
-    gl.uniform1f(this.u.uRadius, this.radius * this.dpr);
-    gl.uniform3f(this.u.uEast, m[0], m[1], m[2]);
-    gl.uniform3f(this.u.uNorth, m[3], m[4], m[5]);
-    gl.uniform3f(this.u.uOut, m[6], m[7], m[8]);
-    gl.uniform1f(this.u.uMix, mix);
-    gl.uniform1f(this.u.uOpacity, opacity ?? 1);
+    gl.uniform1f(u.uRadius,
+      (this.projection === 'robinson' ? this._robinsonR : this.radius) * this.dpr);
+    gl.uniform3f(u.uEast, m[0], m[1], m[2]);
+    gl.uniform3f(u.uNorth, m[3], m[4], m[5]);
+    gl.uniform3f(u.uOut, m[6], m[7], m[8]);
+    gl.uniform1f(u.uCenterLon, (this.state.lon ?? 0) * DEG);
+    gl.uniform1f(u.uMix, mix);
+    gl.uniform1f(u.uOpacity, opacity ?? 1);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, ta);

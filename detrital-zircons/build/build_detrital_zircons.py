@@ -29,17 +29,20 @@ left negative. Bin colour is assigned by the page's own js/pieLayer.js, not bake
 here, the same separation of "data" from "page design" build_zircons.py uses for its
 rock-type colours.
 
-Each sample also gets two tectonic-setting classifications, computed by CALLING gprm's
-own functions directly (not reimplemented here, so results stay byte-for-bit consistent
-with "the Zircons.py", including whatever quirks are already in it):
+Each sample also gets tectonic-setting statistics, computed by CALLING gprm's own
+functions directly (not reimplemented here, so results stay byte-for-bit consistent with
+"the Zircons.py", including whatever quirks are already in it):
 
   cawood_class  'A'/'B'/'C' from Zircons.tectonic_category() -- Cawood et al. (2012),
                 thresholding the same lag-time CDF this page's pies already visualise.
-  barham_class  'A'/'B' from Zircons.tectonic_fingerprint() -- Barham et al. (2022,
-                EPSL) -- that function itself only returns two continuous statistics
-                (chi_square, percentile); the A/B split here (percentile/chi_square > 20
-                -> 'B') is the threshold used in the user's own comparison notebook,
-                ~/GIT/zircons/zircon_class_comparison.ipynb, not invented for this page.
+                A fixed classification, no free parameter.
+  barham_ratio  percentile/chi_square from Zircons.tectonic_fingerprint() -- Barham et
+                al. (2022, EPSL). That function itself only returns two continuous
+                statistics (chi_square, percentile); this page ships their RATIO rather
+                than a precomputed class so js/story.js can threshold it live with a
+                slider (20 -- the split used in the user's own comparison notebook,
+                ~/GIT/zircons/zircon_class_comparison.ipynb -- is only the slider's
+                starting position, not baked in here).
 
 Run:  conda run -n pygmt17 python build/build_detrital_zircons.py
 """
@@ -81,7 +84,7 @@ BIN_WIDTH = 20
 MAX_BIN_EDGE = 4400
 
 # (payload key, samples-dataframe column). 'reference' and 'n_grains'/'dominant_lag'/
-# 'spectrum' are computed in build_samples() below; 'cawood_class'/'barham_class' come
+# 'spectrum' are computed in build_samples() below; 'cawood_class'/'barham_ratio' come
 # from compute_tectonic_classes() and are merged on afterwards -- neither is sourced
 # from gprm directly under these names.
 FIELDS = [
@@ -94,7 +97,7 @@ FIELDS = [
     ("n_grains", "n_grains"),
     ("dominant_lag", "dominant_lag"),
     ("cawood_class", "cawood_class"),
-    ("barham_class", "barham_class"),
+    ("barham_ratio", "barham_ratio"),
     ("spectrum", "spectrum"),
 ]
 
@@ -182,9 +185,10 @@ def build_samples(gdf):
 
 
 def compute_tectonic_classes(gdf):
-    """Cawood et al. (2012) and Barham et al. (2022, EPSL) tectonic-setting
-    classifications, one row per sample -- see this module's own docstring for what
-    each class means and where it comes from.
+    """Cawood et al. (2012) class and Barham et al. (2022, EPSL) ratio, one row per
+    sample -- see this module's own docstring for what each means and where it comes
+    from. Barham ships as a continuous ratio, not a precomputed class, so the page's own
+    JS can threshold it live with a slider rather than baking one split in here.
     """
     from gprm.datasets import Zircons
 
@@ -209,15 +213,12 @@ def compute_tectonic_classes(gdf):
         columns={"TectonicClass": "cawood_class"})
 
     fingerprint = fingerprint.copy()
-    fingerprint["barham_class"] = "A"
-    fp_ratio = fingerprint["percentile"] / fingerprint["chi_square"]
-    fingerprint.loc[fp_ratio > 20, "barham_class"] = "B"
-    # tectonic_fingerprint() itself returns NaN chi_square/percentile for a sample with
-    # fewer than 2 dated grains (nothing to build a spread from) -- leave barham_class
-    # unset there too, rather than defaulting it to 'A' as if the statistic existed.
-    fingerprint.loc[fingerprint["chi_square"].isna(), "barham_class"] = None
+    # NaN (fewer than 2 dated grains, nothing to build a spread from) survives the divide
+    # and is left as NaN -- export.py's own _clean() turns that into a null on the way
+    # out, rather than this script defaulting it to a value as if the statistic existed.
+    fingerprint["barham_ratio"] = fingerprint["percentile"] / fingerprint["chi_square"]
 
-    return classes.merge(fingerprint[[SAMPLE_KEY, "barham_class"]], on=SAMPLE_KEY, how="left")
+    return classes.merge(fingerprint[[SAMPLE_KEY, "barham_ratio"]], on=SAMPLE_KEY, how="left")
 
 
 def main():
@@ -236,13 +237,15 @@ def main():
     print("  {} of {} have a depositional age <= {} Ma ({} excluded, see module "
           "docstring)".format(len(samples), total, END_TIME, total - len(samples)))
 
-    print("computing Cawood/Barham tectonic-setting classes")
+    print("computing Cawood class / Barham ratio")
     classes = compute_tectonic_classes(gdf)
     samples = samples.merge(classes, on=SAMPLE_KEY, how="left")
     print("  cawood_class counts:\n{}".format(
         samples["cawood_class"].value_counts(dropna=False).to_string()))
-    print("  barham_class counts:\n{}".format(
-        samples["barham_class"].value_counts(dropna=False).to_string()))
+    print("  barham_ratio: {} samples, {} without a defined ratio (< 2 dated grains); "
+          "at the default slider threshold of 20, {} would classify 'B'".format(
+              len(samples), samples["barham_ratio"].isna().sum(),
+              (samples["barham_ratio"] > 20).sum()))
 
     fields = [f for f in FIELDS if f[1] in samples.columns]
 
