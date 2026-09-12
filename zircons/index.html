@@ -23,44 +23,52 @@
 </header>
 
 <div class="timebar" id="timebar">
-  <button id="play" type="button" aria-label="Play through time">▶</button>
+  <div class="timebar-body" id="timebar-body">
+    <button id="play" type="button" aria-label="Play through time">▶</button>
 
-  <!-- The chart and the slider share this column, so they are the same width with the
-       same left edge. That is what lets the chart's marker sit exactly over the thumb:
-       one time axis on this panel, not two. -->
-  <div class="timestack">
-    <div class="timeseries" id="timeseries"></div>
-    <input id="scrub" type="range" min="0" max="1000" step="1" value="800"
-           aria-label="Reconstruction time in Ma, increasing to the left">
-    <span class="ticks"><span>1000</span><span id="ts-note"></span><span>0 Ma</span></span>
+    <!-- The chart and the slider share this column, so they are the same width with the
+         same left edge. That is what lets the chart's marker sit exactly over the thumb:
+         one time axis on this panel, not two. -->
+    <div class="timestack">
+      <div class="timeseries" id="timeseries"></div>
+      <input id="scrub" type="range" min="0" max="1000" step="1" value="800"
+             aria-label="Reconstruction time in Ma, increasing to the left">
+      <span class="ticks"><span>1000</span><span id="ts-note"></span><span>0 Ma</span></span>
+    </div>
   </div>
+  <button id="timebar-toggle" class="panel-toggle" type="button"
+          aria-label="Collapse time controls" aria-expanded="true" aria-controls="timebar-body">−</button>
 </div>
 
 <aside class="legend" id="legend">
-  <h2>Boundary type</h2>
-  <ul id="legend-items"></ul>
+  <button id="legend-toggle" class="panel-toggle" type="button"
+          aria-label="Collapse legend" aria-expanded="true" aria-controls="legend-body">−</button>
+  <div class="legend-body" id="legend-body">
+    <h2>Boundary type</h2>
+    <ul id="legend-items"></ul>
 
-  <h2 class="legend-sub">Plate motion</h2>
-  <ul>
-    <li id="velocity-toggle"><span class="swatch swatch-arrow"></span><span>Velocity arrows</span></li>
-  </ul>
-  <p class="scalebar"><svg id="scale-arrow" width="62" height="10" aria-hidden="true"><line x1="1" y1="5" x2="52" y2="5"/><polygon points="61,5 51,9 51,1"/></svg> <span id="scale-label">10 cm/yr</span></p>
+    <h2 class="legend-sub">Plate motion</h2>
+    <ul>
+      <li id="velocity-toggle"><span class="swatch swatch-arrow"></span><span>Velocity arrows</span></li>
+    </ul>
+    <p class="scalebar"><svg id="scale-arrow" width="62" height="10" aria-hidden="true"><line x1="1" y1="5" x2="52" y2="5"/><polygon points="61,5 51,9 51,1"/></svg> <span id="scale-label">10 cm/yr</span></p>
 
-  <h2 class="legend-sub">Igneous zircons <button id="zircon-all" type="button" class="legend-action">none</button></h2>
-  <ul id="zircon-items"></ul>
-  <p class="hint">Bright within 5 Myr of crystallisation age, faint once older; a sample stays on the globe from its age to the present. Counts are cumulative for the current time. Hover for detail, click to keep it open. Rest on a cluster and it fans apart.</p>
+    <h2 class="legend-sub">Igneous zircons <button id="zircon-all" type="button" class="legend-action">none</button></h2>
+    <ul id="zircon-items"></ul>
+    <p class="hint">Bright within 5 Myr of crystallisation age, faint once older; a sample stays on the globe from its age to the present. Counts are cumulative for the current time. Hover for detail, click to keep it open. Rest on a cluster and it fans apart.</p>
 
-  <p class="caveat">
-    Boundaries and continents: <span id="model-credit">…</span> — one plate model, so
-    the trenches sit on the margins they belong to. Continent polygons include the
-    submerged shelf, so they run wider than a coastline.
-  </p>
-  <p class="caveat" id="points-credit"></p>
-  <p class="caveat">
-    The lag-time provenance method used on the companion
-    <a href="../detrital-zircons/">detrital zircon page</a> follows Jian et al. (2022),
-    <em>Journal of Geophysical Research</em> — with thanks to Dongchuan Jian.
-  </p>
+    <p class="caveat">
+      Boundaries and continents: <span id="model-credit">…</span> — one plate model, so
+      the trenches sit on the margins they belong to. Continent polygons include the
+      submerged shelf, so they run wider than a coastline.
+    </p>
+    <p class="caveat" id="points-credit"></p>
+    <p class="caveat">
+      The lag-time provenance method used on the companion
+      <a href="../detrital-zircons/">detrital zircon page</a> follows Jian et al. (2022),
+      <em>Journal of Geophysical Research</em> — with thanks to Dongchuan Jian.
+    </p>
+  </div>
 </aside>
 
 <script type="module" src="js/story.js"></script>

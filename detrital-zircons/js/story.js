@@ -102,6 +102,8 @@ const POPUP_ROWS = [
   ['dominant_lag', 'Dominant lag time', (v) => `~${fmt(v)} Myr`],
   ['n_grains', 'Dated grains', (v) => String(v)],
   ['rock_type', 'Rock type', (v) => v],
+  ['cawood_class', 'Tectonic setting (Cawood)', (v) => v],
+  ['barham_class', 'Tectonic setting (Barham)', (v) => v],
   ['locality', 'Locality', (v) => v],
   ['country', 'Region', (v) => v],
   ['continent', 'Continent', (v) => v],
@@ -121,6 +123,18 @@ function fmt(v) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/** Wires a panel's collapse/expand toggle. The legend and the timebar both use this same
+ *  pattern -- a `.panel-toggle` button that hides everything else in the panel via
+ *  `.is-collapsed` -- so either can be gotten out of the way of the globe entirely,
+ *  rather than only ever being resized by the browser window. */
+function attachCollapse(panelEl, toggleEl) {
+  toggleEl.addEventListener('click', () => {
+    const collapsed = panelEl.classList.toggle('is-collapsed');
+    toggleEl.setAttribute('aria-expanded', String(!collapsed));
+    toggleEl.textContent = collapsed ? '+' : '−';
+  });
 }
 
 async function main() {
@@ -268,6 +282,8 @@ async function main() {
   }
 
   attachControls(stageEl, globe, view, scheduleRender);
+  attachCollapse(document.getElementById('legend'), document.getElementById('legend-toggle'));
+  attachCollapse(document.getElementById('timebar'), document.getElementById('timebar-toggle'));
   window.addEventListener('resize', scheduleRender);
 
   scrubEl.addEventListener('input', () => {

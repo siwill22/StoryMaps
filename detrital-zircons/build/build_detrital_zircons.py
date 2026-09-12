@@ -29,10 +29,24 @@ left negative. Bin colour is assigned by the page's own js/pieLayer.js, not bake
 here, the same separation of "data" from "page design" build_zircons.py uses for its
 rock-type colours.
 
+Each sample also gets two tectonic-setting classifications, computed by CALLING gprm's
+own functions directly (not reimplemented here, so results stay byte-for-bit consistent
+with "the Zircons.py", including whatever quirks are already in it):
+
+  cawood_class  'A'/'B'/'C' from Zircons.tectonic_category() -- Cawood et al. (2012),
+                thresholding the same lag-time CDF this page's pies already visualise.
+  barham_class  'A'/'B' from Zircons.tectonic_fingerprint() -- Barham et al. (2022,
+                EPSL) -- that function itself only returns two continuous statistics
+                (chi_square, percentile); the A/B split here (percentile/chi_square > 20
+                -> 'B') is the threshold used in the user's own comparison notebook,
+                ~/GIT/zircons/zircon_class_comparison.ipynb, not invented for this page.
+
 Run:  conda run -n pygmt17 python build/build_detrital_zircons.py
 """
 
+import contextlib
 import datetime
+import io
 import os
 import sys
 import warnings
@@ -67,7 +81,9 @@ BIN_WIDTH = 20
 MAX_BIN_EDGE = 4400
 
 # (payload key, samples-dataframe column). 'reference' and 'n_grains'/'dominant_lag'/
-# 'spectrum' are computed in build_samples() below, not sourced from gprm directly.
+# 'spectrum' are computed in build_samples() below; 'cawood_class'/'barham_class' come
+# from compute_tectonic_classes() and are merged on afterwards -- neither is sourced
+# from gprm directly under these names.
 FIELDS = [
     ("sample_id", "Sample_ID"),
     ("reference", "reference"),
@@ -77,6 +93,8 @@ FIELDS = [
     ("rock_type", "Class-3 Rock Type"),
     ("n_grains", "n_grains"),
     ("dominant_lag", "dominant_lag"),
+    ("cawood_class", "cawood_class"),
+    ("barham_class", "barham_class"),
     ("spectrum", "spectrum"),
 ]
 
@@ -145,6 +163,7 @@ def build_samples(gdf):
 
         first = group.iloc[0]
         rows.append({
+            SAMPLE_KEY: key,      # kept only to merge compute_tectonic_classes() on below
             "Sample_ID": _clean(first["Sample_ID"]),
             "reference": key.split("-S")[0] if "-S" in key else key,
             "Longitude": float(first["Longitude"]),
@@ -162,6 +181,45 @@ def build_samples(gdf):
     return pd.DataFrame(rows)
 
 
+def compute_tectonic_classes(gdf):
+    """Cawood et al. (2012) and Barham et al. (2022, EPSL) tectonic-setting
+    classifications, one row per sample -- see this module's own docstring for what
+    each class means and where it comes from.
+    """
+    from gprm.datasets import Zircons
+
+    # tectonic_category() prints two floats per sample as a debug leftover in gprm's own
+    # source -- harmless, but not worth 19,564 lines of noise in this script's output.
+    with contextlib.redirect_stdout(io.StringIO()):
+        cawood = Zircons.tectonic_category(
+            gdf, sample_key=SAMPLE_KEY, grain_age_key=GRAIN_AGE_FIELD,
+            depositional_age_key=DEPOS_AGE_FIELD)
+        fingerprint = Zircons.tectonic_fingerprint(
+            gdf, sample_key=SAMPLE_KEY, grain_age_key=GRAIN_AGE_FIELD,
+            depositional_age_key=DEPOS_AGE_FIELD)
+
+    # Both come back from gprm with the groupby index still labelled 'Ref-Sample Key' --
+    # the same name the dict literal inside tectonic_category()/tectonic_fingerprint()
+    # ALSO uses for an explicit column, so pandas has two things by that name and merge()
+    # can't resolve which one is meant without this reset first.
+    cawood = cawood.reset_index(drop=True)
+    fingerprint = fingerprint.reset_index(drop=True)
+
+    classes = cawood[[SAMPLE_KEY, "TectonicClass"]].rename(
+        columns={"TectonicClass": "cawood_class"})
+
+    fingerprint = fingerprint.copy()
+    fingerprint["barham_class"] = "A"
+    fp_ratio = fingerprint["percentile"] / fingerprint["chi_square"]
+    fingerprint.loc[fp_ratio > 20, "barham_class"] = "B"
+    # tectonic_fingerprint() itself returns NaN chi_square/percentile for a sample with
+    # fewer than 2 dated grains (nothing to build a spread from) -- leave barham_class
+    # unset there too, rather than defaulting it to 'A' as if the statistic existed.
+    fingerprint.loc[fingerprint["chi_square"].isna(), "barham_class"] = None
+
+    return classes.merge(fingerprint[[SAMPLE_KEY, "barham_class"]], on=SAMPLE_KEY, how="left")
+
+
 def main():
     warnings.filterwarnings("ignore")
 
@@ -177,6 +235,14 @@ def main():
     samples = samples[samples["Age"] <= END_TIME]
     print("  {} of {} have a depositional age <= {} Ma ({} excluded, see module "
           "docstring)".format(len(samples), total, END_TIME, total - len(samples)))
+
+    print("computing Cawood/Barham tectonic-setting classes")
+    classes = compute_tectonic_classes(gdf)
+    samples = samples.merge(classes, on=SAMPLE_KEY, how="left")
+    print("  cawood_class counts:\n{}".format(
+        samples["cawood_class"].value_counts(dropna=False).to_string()))
+    print("  barham_class counts:\n{}".format(
+        samples["barham_class"].value_counts(dropna=False).to_string()))
 
     fields = [f for f in FIELDS if f[1] in samples.columns]
 

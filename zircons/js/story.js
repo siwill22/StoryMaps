@@ -144,6 +144,18 @@ function escapeHtml(s) {
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/** Wires a panel's collapse/expand toggle. The legend and the timebar both use this same
+ *  pattern -- a `.panel-toggle` button that hides everything else in the panel via
+ *  `.is-collapsed` -- so either can be gotten out of the way of the globe entirely,
+ *  rather than only ever being resized by the browser window. */
+function attachCollapse(panelEl, toggleEl) {
+  toggleEl.addEventListener('click', () => {
+    const collapsed = panelEl.classList.toggle('is-collapsed');
+    toggleEl.setAttribute('aria-expanded', String(!collapsed));
+    toggleEl.textContent = collapsed ? '+' : '−';
+  });
+}
+
 async function main() {
   const stageEl = document.getElementById('stage');
   const globeEl = document.getElementById('globe');
@@ -347,6 +359,8 @@ async function main() {
   }
 
   attachControls(stageEl, globe, view, scheduleRender);
+  attachCollapse(document.getElementById('legend'), document.getElementById('legend-toggle'));
+  attachCollapse(document.getElementById('timebar'), document.getElementById('timebar-toggle'));
   window.addEventListener('resize', scheduleRender);
 
   scrubEl.addEventListener('input', () => {

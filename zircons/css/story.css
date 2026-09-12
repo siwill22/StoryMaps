@@ -128,6 +128,26 @@ html, body {
 
 .timebar button:hover { background: rgba(143, 212, 240, 0.12); }
 
+/* Play button + timestack, everything the collapse toggle hides. Its own flex row so
+ * the toggle (a sibling, not a child) keeps the same round-icon size the play button
+ * has regardless of how the body's content wraps. */
+.timebar-body {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Collapsed: shrink the whole bar down to just the toggle button, rather than leaving
+ * an empty bar-shaped void where the body used to be. */
+.timebar.is-collapsed {
+  width: auto;
+  padding: 0.5rem;
+}
+
+.timebar.is-collapsed .timebar-body { display: none; }
+
 /* Chart and slider stacked in one column, so they are the same width with the same left
  * edge. Without that the marker cannot line up with the thumb. */
 .timestack {
@@ -256,6 +276,44 @@ html, body {
   max-height: calc(100vh - 9rem);
   overflow-y: auto;
 }
+
+/* Round icon button, matching .timebar button's own size/style. Scoped to .legend
+ * specifically (not a bare .panel-toggle rule) -- the timebar's own toggle shares the
+ * same class for its collapse/expand behaviour in JS, but sits inline as a flex item
+ * there (styled for free by the existing ".timebar button" rule above) rather than
+ * pinned to a corner the way it needs to be here, where the legend is a block-stacked
+ * aside, not a flex row. */
+.legend .panel-toggle {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.legend .panel-toggle:hover { background: rgba(143, 212, 240, 0.12); }
+
+/* Collapsed: shrink the whole panel down to just the toggle button (now back in normal
+ * flow, not pinned to a corner that would otherwise be floating in an empty box), rather
+ * than leaving a panel-shaped void with nothing in it. This is the direct fix for the
+ * legend swallowing a narrow window -- collapsing gets it out of the way entirely,
+ * rather than relying on the max-height cap below to leave enough of the globe visible. */
+.legend.is-collapsed {
+  width: auto;
+  max-height: none;
+  padding: 0.4rem;
+  overflow: visible;
+}
+
+.legend.is-collapsed .legend-body { display: none; }
+.legend.is-collapsed .panel-toggle { position: static; }
 
 .legend h2 {
   margin: 0 0 0.6rem;
@@ -489,8 +547,20 @@ html, body {
 }
 
 @media (max-width: 900px) {
-  .legend { left: 1rem; right: 1rem; width: auto; bottom: 5.5rem; }
+  /* Full width here (rather than the desktop 17rem) means the legend, expanded, would
+   * otherwise inherit the desktop max-height of calc(100vh - 9rem) -- on a narrow-but-
+   * tall window that is most of the screen, with the globe reduced to a sliver behind
+   * it. Capped tighter here so the globe stays the majority of the view even expanded;
+   * the collapse toggle (see .panel-toggle) is there for getting it out of the way
+   * entirely. */
+  .legend { left: 1rem; right: 1rem; width: auto; bottom: 5.5rem; max-height: 42vh; }
   .timebar { left: 1rem; right: 1rem; width: auto; }
+  /* Both left AND right are set above, so width:auto alone won't shrink the box (the
+   * browser fills the gap between them instead) -- right:auto lets each shrink to
+   * content while staying anchored to its existing left edge, rather than jumping
+   * across to the opposite side of the screen when collapsed. */
+  .legend.is-collapsed { right: auto; width: auto; }
+  .timebar.is-collapsed { right: auto; width: auto; }
   .titlecard { max-width: none; }
 
   /* Four stacked rows plus the mode buttons is most of a phone screen, and the globe is
