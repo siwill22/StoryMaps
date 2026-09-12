@@ -68,11 +68,20 @@ function rgb([r, g, b]) {
 
 // Colour by tectonic-setting class instead of lag time: flat fill, one colour per class,
 // rather than a gradient -- a class is one categorical value for the whole sample, there
-// is nothing to sweep. Picked to read clearly against the dark ocean background and to
-// stay distinguishable from each other; there is no established colour convention to
-// follow here the way the lag ramp follows seismic/RdBu.
-export const CAWOOD_COLOURS = { A: '#e0a72e', B: '#5fb9e0', C: '#c25fcf' };
-export const BARHAM_COLOURS = { A: '#2fae7c', B: '#e0623f' };
+// is nothing to sweep. Colours follow the tectonic setting each class stands for, not an
+// arbitrary palette: Cawood's A/B/C are convergent/collisional/divergent-or-intraplate
+// margins, by user request mapped to red/blue/green respectively (the conventional sense
+// of those three settings) -- but drawn from the Okabe-Ito colour-universal-design
+// palette (vermillion/blue/bluish-green, not literal RGB primaries) so the three stay
+// distinguishable under protanopia, deuteranopia and tritanopia, not just for standard
+// vision. Barham's method only ever yields two classes, not three -- no collisional
+// middle category -- so its 'A' (low ratio: a single well-fit source, i.e. convergent-
+// like) and 'B' (high ratio: a broad/mixed source, i.e. divergent-or-intraplate-like)
+// reuse Cawood's A and C colours exactly, rather than a separate two-colour scheme, since
+// the user asked for the same setting to always read as the same colour across both
+// classifications.
+export const CAWOOD_COLOURS = { A: '#D55E00', B: '#0072B2', C: '#009E73' };
+export const BARHAM_COLOURS = { A: CAWOOD_COLOURS.A, B: CAWOOD_COLOURS.C };
 
 // Shared by both class modes: a sample with no defined class (Cawood: none should occur;
 // Barham: fewer than 2 dated grains) still gets a glyph, so a reader can see it exists

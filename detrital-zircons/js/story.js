@@ -728,6 +728,12 @@ function buildColourModeControl(samples) {
       `<span>${label} <span class="legend-count">· ${count.toLocaleString()}</span></span></li>`;
   }
 
+  // Same setting names for both classifications' shared A/C colours (see pieLayer.js's
+  // own comment on why Barham reuses Cawood's palette) -- Barham has no collisional
+  // middle category, so only A and C ever appear here.
+  const CAWOOD_LABELS = { A: 'A — convergent', B: 'B — collisional', C: 'C — divergent / intraplate' };
+  const BARHAM_LABELS = { A: 'A — convergent-like', B: 'B — divergent-like' };
+
   function renderClassLegend() {
     if (mode === 'cawood') {
       const counts = { A: 0, B: 0, C: 0 };
@@ -735,7 +741,7 @@ function buildColourModeControl(samples) {
         if (point.cawood_class in counts) counts[point.cawood_class]++;
       }
       classLegend.innerHTML = ['A', 'B', 'C']
-        .map((cls) => classLegendRow(cawoodColour(cls), `Class ${cls}`, counts[cls]))
+        .map((cls) => classLegendRow(cawoodColour(cls), CAWOOD_LABELS[cls], counts[cls]))
         .join('');
     } else if (mode === 'barham') {
       const counts = { A: 0, B: 0 };
@@ -745,7 +751,7 @@ function buildColourModeControl(samples) {
         if (cls) counts[cls]++; else none++;
       }
       classLegend.innerHTML =
-        ['A', 'B'].map((cls) => classLegendRow(barhamColour(cls), `Class ${cls}`, counts[cls])).join('') +
+        ['A', 'B'].map((cls) => classLegendRow(barhamColour(cls), BARHAM_LABELS[cls], counts[cls])).join('') +
         classLegendRow(UNCLASSIFIED_COLOUR, 'Too few grains', none);
     }
   }

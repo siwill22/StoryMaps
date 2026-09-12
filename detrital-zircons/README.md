@@ -150,6 +150,18 @@ the hover/pin popup's own Barham row live, all from the one `barham_ratio` shipp
 (Barham's 107 sub-2-grain samples) draws in a neutral grey rather than being silently
 dropped from the layer.
 
+**Class colours follow tectonic setting, not an arbitrary palette.** Cawood's A/B/C are
+convergent/collisional/divergent-or-intraplate margins; by request they read as
+red/blue/green respectively (the conventional sense of those three settings), but drawn
+from the Okabe-Ito colour-universal-design palette -- vermillion `#D55E00`, blue
+`#0072B2`, bluish green `#009E73` -- rather than literal RGB primaries, so the three
+stay distinguishable under protanopia, deuteranopia and tritanopia, not just standard
+vision. Barham's method only ever yields two classes (no collisional middle category),
+so its 'A' (a single well-fit source -- convergent-like) and 'B' (a broad/mixed source
+-- divergent-or-intraplate-like) reuse Cawood's A and C colours exactly, so the same
+underlying setting reads as the same colour in both classifications. Both legends now
+name the setting alongside the letter (e.g. "A — convergent"), not just "Class A".
+
 ## Why a custom pie layer, not the deposit/zircon symbol renderer
 
 `deep-time-map`'s `PointLayer` (`js/points.js` in the vendored submodule) draws one fixed
