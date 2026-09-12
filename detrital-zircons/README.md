@@ -131,8 +131,23 @@ project did not audit or fix either function, only call it).
   split in at build time. 20 -- the split from the user's own classification-comparison
   notebook (`~/GIT/zircons/zircon_class_comparison.ipynb`) -- is only the slider's
   starting position. A sample with fewer than 2 dated grains has no defined ratio at all
-  (107 of 16,477 samples, `null`) rather than defaulting to a class as if the statistic
-  existed.
+  (117 of 16,477 samples, `null`) rather than defaulting to a class as if the statistic
+  existed; a handful of those are 2-grain samples whose `chi_square` landed on exactly 0
+  rather than genuinely having too few grains -- see `compute_tectonic_classes()`'s own
+  comment in the build script for why that is left undefined rather than becoming a
+  (not valid JSON, and not a real geological signal) infinite ratio.
+
+  `gprm.datasets.Zircons.tectonic_fingerprint()`/`chi_square()` were audited against the
+  published method (2026-09) and had several real bugs fixed there (not in this repo):
+  the chi-square age-bin count was silently reused from the FIRST sample in the whole
+  dataset for every sample after it, instead of each sample's own grain count as the
+  paper specifies; NaN grain ages were not filtered before sorting, and a
+  no-`elif`/`continue` control-flow bug double-appended results for any sample with only
+  non-finite ages; and the age-binning upper bound was 4501 Ma rather than the paper's
+  stated 4 Ga, with the normalisation dividing by the bin count rather than the bins-1
+  "degrees of freedom" the paper specifies. Fixing these changed the real distribution
+  materially -- at the default threshold, Barham's split moved from A 8,674/B 7,696 to
+  A 8,121/B 8,239.
 
 **Colour by class, not just lag time.** Three pill buttons above the age ramp ("Lag
 time" / "Cawood" / "Barham") switch what a pie's fill means, wired in

@@ -42,7 +42,10 @@ functions directly (not reimplemented here, so results stay byte-for-bit consist
                 than a precomputed class so js/story.js can threshold it live with a
                 slider (20 -- the split used in the user's own comparison notebook,
                 ~/GIT/zircons/zircon_class_comparison.ipynb -- is only the slider's
-                starting position, not baked in here).
+                starting position, not baked in here). Left undefined (null) rather than
+                a real value for a 2-grain sample whose chi_square lands on exactly 0 --
+                see compute_tectonic_classes()'s own comment on why that is a sample-size
+                artifact, not a real "maximally divergent" signal.
 
 Run:  conda run -n pygmt17 python build/build_detrital_zircons.py
 """
@@ -218,6 +221,18 @@ def compute_tectonic_classes(gdf):
     # out, rather than this script defaulting it to a value as if the statistic existed.
     fingerprint["barham_ratio"] = fingerprint["percentile"] / fingerprint["chi_square"]
 
+    # chi_square() bins one grain per bin by default (Barham et al.'s own "variable bin
+    # duration" choice) -- for a 2-grain sample (the minimum this page even attempts) that
+    # means exactly 2 bins, and the 2 grains land in the SAME expected-count-1 bin each far
+    # more often than not, making chi_square == 0 (a "perfectly even" distribution) the
+    # GENERIC outcome for tiny samples, not a rare fluke: all 15 samples in this dataset
+    # with exactly 2 dated grains hit it exactly. Treating that as a confidently
+    # maximally-divergent signal would be an artifact of having only 2 data points, not a
+    # real geological one, so it is left undefined (NaN) here rather than becoming +-inf
+    # (not valid JSON on export in any case) or being read as a genuine classification.
+    fingerprint["barham_ratio"] = fingerprint["barham_ratio"].replace(
+        [float("inf"), float("-inf")], float("nan"))
+
     return classes.merge(fingerprint[[SAMPLE_KEY, "barham_ratio"]], on=SAMPLE_KEY, how="left")
 
 
@@ -242,8 +257,10 @@ def main():
     samples = samples.merge(classes, on=SAMPLE_KEY, how="left")
     print("  cawood_class counts:\n{}".format(
         samples["cawood_class"].value_counts(dropna=False).to_string()))
-    print("  barham_ratio: {} samples, {} without a defined ratio (< 2 dated grains); "
-          "at the default slider threshold of 20, {} would classify 'B'".format(
+    print("  barham_ratio: {} samples, {} without a defined ratio (< 2 dated grains, or "
+          "a 2-grain sample whose chi_square landed on exactly 0 -- see "
+          "compute_tectonic_classes()'s own comment); at the default slider threshold "
+          "of 20, {} would classify 'B'".format(
               len(samples), samples["barham_ratio"].isna().sum(),
               (samples["barham_ratio"] > 20).sum()))
 
