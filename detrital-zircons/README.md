@@ -60,9 +60,29 @@ is only drawn within 5 Myr of its depositional age, then disappears entirely. Th
 is about WHEN a rock was deposited, not that it still exists today (the same rule
 `../plate-boundaries`'s base metal deposits use), so there is no time that shows
 "everything so far" -- only a moving slice through the deposition record. 16,477 of
-19,564 samples (84%) have a depositional age of 1000 Ma or younger and appear on this
-page at all; the rest are older than Merdith2021's own topology limit and have nowhere
-valid to be reconstructed to (same reasoning as `../zircons`'s igneous-age cutoff).
+19,564 samples (84%) have a depositional age of 1000 Ma or younger and survive this
+page's first filter; the rest are older than Merdith2021's own topology limit and have
+nowhere valid to be reconstructed to (same reasoning as `../zircons`'s igneous-age
+cutoff).
+
+**A second filter removes samples older than their own assigned plate.** Plate-ID
+assignment is a present-day point-in-polygon test against the model's static polygons,
+which says nothing about whether that specific polygon's block existed AS SUCH back at
+a sample's depositional age -- a polygon's own 'from' age is often much younger than
+1000 Ma (a common static-polygon modelling convention, not specific to this dataset),
+and a plate's rotation sequence typically does not extend further back than that either.
+Reconstructing a sample older than its own assigned polygon's 'from' age queries the
+rotation sequence outside its defined range; pygplates holds the oldest defined pole
+fixed rather than erroring, so the sample silently reconstructs as motionless --
+noticed directly on this page ("some samples displayed that are not moving as the
+reconstruction time changes") rather than caught by any automated check.
+`build/build_detrital_zircons.py`'s `filter_reconstructable_samples()` excludes any
+sample whose depositional age exceeds its assigned static polygon's own 'from' age
+(`pygplates.PartitionProperty.valid_time_begin`), no tolerance margin -- confirmed this
+is a real, geologically meaningful mismatch rather than rounding noise (excess age from
+1 to 760 Myr, median ~100 Myr, across the 1,988 affected samples) and distinct from the
+existing "plate 0 / outside every polygon" unassigned case (zero overlap between the
+two). 14,489 of 16,477 samples (88%) survive this second filter.
 
 **The pie itself is NOT time-varying.** A sample's lag-time spectrum is a fixed property
 of that one rock, not something that changes as the reconstruction scrubs -- only the
@@ -116,13 +136,15 @@ Each sample's popup also carries two independent tectonic-setting classification
 computed at build time by **calling gprm's own functions directly** --
 `gprm.datasets.Zircons.tectonic_category()` and `.tectonic_fingerprint()` --
 rather than reimplementing either method in this repo, so the results stay exactly
-consistent with "the Zircons.py" (including whatever quirks already exist in it; this
-project did not audit or fix either function, only call it).
+consistent with "the Zircons.py". `tectonic_fingerprint()`/`chi_square()` (the Barham
+method) WAS since audited against the published paper and had real bugs fixed there
+(a separate repo, `GPlatesReconstructionModel`, not this one) -- see below.
+`tectonic_category()` (Cawood) was not audited, only called.
 
 - **Cawood (`cawood_class`, A/B/C)**: `Zircons.tectonic_category()`, following Cawood et
   al. (2012), thresholds the same lag-time CDF this page's pies already visualise (short
   lag concentrated near the fast end of the CDF vs. spread across it). Distribution
-  across the 16,477 samples on this page: A 8,927, C 4,510, B 3,040. A fixed
+  across the 14,489 samples on this page: A 7,619, C 4,099, B 2,771. A fixed
   classification, no free parameter.
 - **Barham (`barham_ratio`)**: `Zircons.tectonic_fingerprint()`, following Barham et al.
   (2022, *EPSL*), itself returns two continuous statistics (`chi_square`, `percentile`)
@@ -131,11 +153,25 @@ project did not audit or fix either function, only call it).
   split in at build time. 20 -- the split from the user's own classification-comparison
   notebook (`~/GIT/zircons/zircon_class_comparison.ipynb`) -- is only the slider's
   starting position. A sample with fewer than 2 dated grains has no defined ratio at all
-  (117 of 16,477 samples, `null`) rather than defaulting to a class as if the statistic
+  (107 of 14,489 samples, `null`) rather than defaulting to a class as if the statistic
   existed; a handful of those are 2-grain samples whose `chi_square` landed on exactly 0
   rather than genuinely having too few grains -- see `compute_tectonic_classes()`'s own
   comment in the build script for why that is left undefined rather than becoming a
-  (not valid JSON, and not a real geological signal) infinite ratio.
+  (not valid JSON, and not a real geological signal) infinite ratio. At the default
+  threshold of 20: A 7,010, B 7,372.
+
+  `tectonic_fingerprint()`/`chi_square()` were audited against Barham, Kirkland & Handoko
+  (2022, *EPSL* 583) and had several real bugs fixed in `GPlatesReconstructionModel`
+  (2026-09): the chi-square age-bin count was silently frozen at the FIRST sample's own
+  grain count for every sample after it, rather than each sample's own count as the
+  paper specifies -- the single highest-impact fix, since it affected every
+  classification this function had ever produced with default arguments; NaN grain ages
+  weren't filtered before sorting, and a missing `elif`/`continue` let an all-NaN sample
+  double-append and desynchronize the output; the age-binning upper bound was 4501 Ma
+  rather than the paper's stated 4 Ga, and the final normalisation divided by the bin
+  count rather than the bins-1 "degrees of freedom" the paper specifies. Fixing these
+  moved Barham's real distribution materially (at the default threshold, from A
+  8,674/B 7,696 to A 8,121/B 8,239 on the 16,477-sample set at the time).
 
   `gprm.datasets.Zircons.tectonic_fingerprint()`/`chi_square()` were audited against the
   published method (2026-09) and had several real bugs fixed there (not in this repo):
@@ -156,7 +192,7 @@ time" / "Cawood" / "Barham") switch what a pie's fill means, wired in
 above; Cawood and Barham instead paint the WHOLE pie one flat colour for that sample's
 class (a class is one categorical value per sample, there is nothing to sweep a
 gradient across) and swap the age ramp for a small legend of class swatches + counts
-(over the whole 16,477-sample dataset, not just samples currently in their 5 Myr
+(over the whole 14,489-sample dataset, not just samples currently in their 5 Myr
 window -- a class doesn't depend on time, so a live count would only be reporting on
 the window, not the classification). Selecting Barham also reveals a threshold slider
 (1-100, default 20); dragging it reclassifies every pie AND the class-legend counts AND
@@ -347,6 +383,16 @@ per-ring lon/lat conversion and seam check, not a concern for a prototype. The v
 arrow fix was verified the same way, plus a pixel scan across a 40-frame scrub at the
 worst-case central meridian (180) for any long run of arrow-coloured pixels in a single
 canvas row -- none found.
+
+User-reported directly on the live page: some samples visibly did not move as the
+reconstruction time changed. Root cause and fix are `filter_reconstructable_samples()`
+in the "A second filter..." section above -- 1,988 samples excluded, 14,489 remain.
+Verified the specific sample used to diagnose this (`13080810`, previously assigned
+plate 226 whose static polygon's 'from' age of 170 Ma is younger than the sample's own
+375 Ma) is no longer present in `points.json`, and re-ran the existing Playwright
+load/console-error check and the colour-mode legend-count check against the regenerated
+data -- all numbers above (14,489/7,619/2,771/4,099/7,010/7,372/107) read back exactly
+as computed by the build script, zero console errors.
 
 Only `data/` is gitignored (regenerated by the build scripts above); the rest of this
 page (this README, `build/`, `css/`, `index.html`, `js/`) is tracked.

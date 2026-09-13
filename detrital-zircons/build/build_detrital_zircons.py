@@ -20,6 +20,14 @@ Filtered to depositional age <= END_TIME, matching Merdith2021's own topology li
 reasoning as build_zircons.py): a sample whose host rock is older than the model can
 reconstruct would have nowhere valid to sit. 16,477 of 19,564 samples (84%) survive this.
 
+A further ~12% are then dropped by filter_reconstructable_samples(): a sample whose
+depositional age exceeds its own assigned static polygon's 'from' age reconstructs as
+motionless (the plate's rotation sequence does not extend that far back either, and
+pygplates holds the oldest defined pole fixed rather than erroring) -- silently and
+misleadingly rather than loudly, which is why some samples were visibly not moving as
+the reconstruction time changed before this filter was added. See that function's own
+docstring for the mechanism and real numbers.
+
 The lag-time histogram itself is NOT filtered to END_TIME -- a grain's lag time can be
 (and often is) in the thousands of Myr, that is the whole point of a provenance record,
 so bins run to 4400 Myr to cover the largest lag in the compilation. A grain dated
@@ -59,6 +67,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import pygplates
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(HERE)
@@ -187,6 +196,63 @@ def build_samples(gdf):
     return pd.DataFrame(rows)
 
 
+def filter_reconstructable_samples(samples, model):
+    """Drop samples older than the plate they have been assigned to.
+
+    `deep_time_map`'s own plate-ID assignment (points_from_dataframe(), shared/vendor)
+    is a present-day point-in-polygon test against the model's static polygons -- it
+    says nothing about whether that specific polygon's own block existed AS SUCH back at
+    a sample's depositional age. Each static polygon carries its own 'from' age
+    (pygplates.PartitionProperty.valid_time_begin) beyond which the model does not
+    consider that boundary a geologically meaningful description of the crust there; a
+    plate's rotation sequence typically only extends back to that same age, so querying
+    a rotation for an older time returns the sequence's oldest defined pole held fixed --
+    the sample silently reconstructs as motionless rather than erroring, which is what
+    was actually observed (some samples visibly not moving as the reconstruction time
+    changes) and led to this filter. ~12% of samples in this dataset (1,988 of 16,477)
+    are older than their own assigned polygon's 'from' age, by anywhere from 1 to 760
+    Myr (median ~100 Myr) -- a real, geologically meaningful mismatch, not rounding
+    noise, so no tolerance margin is applied.
+
+    Distinct from, and does not overlap with, the existing "plate 0 / outside every
+    polygon" unassigned case that deep_time_map.export_points() already warns about --
+    every excluded sample here DOES have a containing polygon, just one too young for it.
+    """
+    features = []
+    for i, row in enumerate(samples.itertuples(index=False)):
+        feature = pygplates.Feature()
+        feature.set_geometry(pygplates.PointOnSphere(row.Latitude, row.Longitude))
+        feature.set_name(str(i))
+        feature.set_valid_time(pygplates.GeoTimeInstant.create_distant_past(),
+                               pygplates.GeoTimeInstant.create_distant_future())
+        features.append(feature)
+
+    partitioned = pygplates.partition_into_plates(
+        model.static_polygons, model.rotation_model, features,
+        properties_to_copy=[pygplates.PartitionProperty.reconstruction_plate_id,
+                             pygplates.PartitionProperty.valid_time_begin])
+
+    from_age = [None] * len(samples)
+    for feature in partitioned:
+        i = int(feature.get_name())
+        begin, _ = feature.get_valid_time()
+        from_age[i] = float(begin)
+
+    # Same invariant deep_time_map.points_from_dataframe() itself enforces: a point
+    # feature is never split (it is either inside one polygon or outside all of them),
+    # so every input index must come back exactly once -- silently defaulting a missing
+    # one would be worse than this loud failure.
+    missing = [i for i, v in enumerate(from_age) if v is None]
+    if missing:
+        raise RuntimeError(
+            "{} points were lost during static-polygon partitioning (first at index "
+            "{})".format(len(missing), missing[0]))
+
+    samples = samples.reset_index(drop=True)
+    too_old = np.array(from_age) < samples["Age"].to_numpy()
+    return samples[~too_old].reset_index(drop=True), int(too_old.sum())
+
+
 def compute_tectonic_classes(gdf):
     """Cawood et al. (2012) class and Barham et al. (2022, EPSL) ratio, one row per
     sample -- see this module's own docstring for what each means and where it comes
@@ -252,6 +318,13 @@ def main():
     print("  {} of {} have a depositional age <= {} Ma ({} excluded, see module "
           "docstring)".format(len(samples), total, END_TIME, total - len(samples)))
 
+    model = load_model(MODEL_NAME)
+    before = len(samples)
+    samples, n_too_old = filter_reconstructable_samples(samples, model)
+    print("  {} of {} are older than their own assigned static polygon's 'from' age and "
+          "were excluded (see filter_reconstructable_samples()'s own docstring); {} "
+          "remain".format(n_too_old, before, len(samples)))
+
     print("computing Cawood class / Barham ratio")
     classes = compute_tectonic_classes(gdf)
     samples = samples.merge(classes, on=SAMPLE_KEY, how="left")
@@ -266,10 +339,10 @@ def main():
 
     fields = [f for f in FIELDS if f[1] in samples.columns]
 
-    model = load_model(MODEL_NAME)
     export_points(
         samples,
         model_name=MODEL_NAME,
+        model=model,  # already loaded above for filter_reconstructable_samples()
         start=START_TIME, end=END_TIME, step=TIME_STEP,
         transport="rotations",
         fields=fields,
@@ -284,7 +357,6 @@ def main():
                   "spectrum (grain age minus depositional age), in {} Myr bins.".format(
                       len(samples), total, END_TIME, BIN_WIDTH))},
         out_dir=os.path.join(HERE, "data"),
-        model=model,
     )
 
 
