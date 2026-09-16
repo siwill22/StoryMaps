@@ -596,7 +596,8 @@ html, body {
  * strands plus the measured record below them. */
 .chart {
   position: relative;
-  height: 150px;
+  /* 150px + the glaciation strip added beneath the record row. */
+  height: 176px;
   width: 100%;
 }
 .chart canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
@@ -634,6 +635,31 @@ html, body {
   cursor: pointer;
 }
 .proj-toggle:hover { color: var(--ink); border-color: var(--accent); }
+
+/*
+ * Shown over the empty ocean when the selected model has no rotations for the time on the
+ * slider. Deliberately plain: it is a statement about the data, not a warning.
+ */
+.out-of-range {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  max-width: 24rem;
+  margin: 0;
+  padding: 0.9rem 1.15rem;
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--ink-dim);
+  background: rgba(14, 22, 33, 0.86);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.out-of-range[hidden] { display: none; }
+.out-of-range strong { color: var(--ink); font-weight: 500; }
 
 /* ---- knobs ------------------------------------------------------------- */
 
@@ -736,7 +762,16 @@ html, body {
 }
 .strand-hover.is-on { display: block; }
 .strand-hover strong { display: block; font-weight: 600; }
-.strand-hover span { color: var(--ink-dim); }
+.strand-hover span { display: block; color: var(--ink-dim); }
+.strand-hover em { font-style: normal; opacity: 0.7; }
+
+/* Provenance and caveats under a glaciation's dates: present, but subordinate to them. */
+.strand-hover .hover-note {
+  margin-top: 0.3rem;
+  font-size: 0.64rem;
+  line-height: 1.4;
+  opacity: 0.72;
+}
 
 /* ---- coverage ---------------------------------------------------------- */
 
@@ -761,7 +796,7 @@ html, body {
 .coverage strong { color: var(--ink); font-weight: 600; }
 
 @media (max-width: 900px) {
-  .chart { height: 110px; }
+  .chart { height: 136px; }
   .lat-hist { display: none; }
 }
 

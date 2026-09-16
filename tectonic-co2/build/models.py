@@ -131,7 +131,11 @@ MODELS = {
 }
 
 START_TIME = 0
-END_TIME = 1000
+
+# 800 Ma, not 1000. Only Merdith2021 reaches the earliest Neoproterozoic at all, and the
+# suture compilation itself thins to almost nothing before ~800 Ma, so the extra 200 Myr
+# was a mostly-empty axis that made every earlier signal narrower on screen.
+END_TIME = 800
 
 # 5 Myr, not 1. See build_boundaries.py's docstring for why this page deliberately runs
 # coarser than its siblings.

@@ -85,7 +85,9 @@ that "±15°" is not a number, it is a decision about whether the Tsangpo suture
   fix for the antimeridian seam).
 - Latitude histogram down the left edge — same primitive array, summed over the current slice.
   Aligns exactly with the y-axis in Robinson.
-- 5 Myr steps, 0–1000 Ma.
+- 5 Myr steps, 0–800 Ma. (Was 0–1000; cut back because only Merdith2021 reaches the
+  earliest Neoproterozoic at all and the suture record thins to nothing before ~800 Ma, so the
+  extra 200 Myr was a mostly-empty axis squeezing everything else.)
 
 Accepted asymmetry: plate-model choice and suture age-definition have no geographic gesture.
 Switching models just makes things jump. Not worth contriving a globe role for every knob.

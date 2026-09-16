@@ -30,6 +30,13 @@ const PAD = { top: 10, bottom: 4 };
 const FALLBACK_PAD = { left: 66, right: 14 };
 const ROW_GAP = 8;
 
+/* Glaciation strip -- see _drawGlaciations() for why it is its own row. */
+const GLACIATION_H = 27;
+// Gaskiers lasted ~1 Myr. On an 800 Myr axis that is well under a pixel, so it would
+// otherwise be invisible next to a 59 Myr Sturtian. Widened to stay findable; the
+// distortion is real, so the page says so rather than letting the bar be read as duration.
+const MIN_BAR_PX = 4;
+
 export class Chart {
   /**
    * @param element   container
@@ -86,6 +93,12 @@ export class Chart {
     this.draw();
   }
 
+  /** Dated glaciation intervals -- see _drawGlaciations(). */
+  setGlaciations(glaciations) {
+    this.glaciations = glaciations;
+    this.draw();
+  }
+
   setTime(t) {
     this.time = t;
     this.draw();
@@ -103,12 +116,15 @@ export class Chart {
     // the slider thumb below it -- one time axis on this panel, not two that nearly agree.
     const x0 = padLeft + this.thumbWidth / 2;
     const x1 = w - padRight - this.thumbWidth / 2;
+    const glacH = this.glaciations?.length ? GLACIATION_H : 0;
     const recordH = this.record ? Math.max(34, (h - PAD.top - PAD.bottom) * 0.28) : 0;
-    const driverH = h - PAD.top - PAD.bottom - recordH - (this.record ? ROW_GAP : 0);
+    const driverH = h - PAD.top - PAD.bottom - recordH - (this.record ? ROW_GAP : 0) - glacH;
+    const recordY0 = PAD.top + driverH + ROW_GAP;
     return {
       w, h, x0, x1,
       driver: { y0: PAD.top, y1: PAD.top + driverH },
-      record: { y0: PAD.top + driverH + ROW_GAP, y1: PAD.top + driverH + ROW_GAP + recordH },
+      record: { y0: recordY0, y1: recordY0 + recordH },
+      glac: { y0: recordY0 + recordH, y1: recordY0 + recordH + glacH },
     };
   }
 
@@ -139,6 +155,7 @@ export class Chart {
 
     this._drawDrivers(ctx, L);
     if (this.record) this._drawRecord(ctx, L);
+    if (this.glaciations?.length) this._drawGlaciations(ctx, L);
     this._drawMarker(ctx, L);
   }
 
@@ -263,13 +280,115 @@ export class Chart {
     ctx.fillText(r.label, L.x0 - 6, (y0 + y1) / 2);
   }
 
+  /*
+   * Dated glaciations, as interval bars in their own strip.
+   *
+   * They are NOT folded into the record curve above, because they are not the same kind of
+   * measurement. `ice_extent` is a continuous latitude-of-ice-margin series and it stops at
+   * 525 Ma; the Cryogenian record is a set of brackets -- "the onset lies between these two
+   * dated horizons". Drawing the second as a curve would invent a continuity the
+   * geochronology does not have.
+   *
+   * Each boundary is drawn at the real width of its bracket: solid where the age is pinned,
+   * fading out across the range where it is not. That is the whole point of the encoding.
+   * Three of the four Cryogenian boundaries are known to a little over 1 Myr and read as
+   * hard edges; the Marinoan onset is loose over 10.9 Myr and visibly dissolves. No
+   * annotation makes that claim -- the bar just looks like what the data is.
+   */
+  _drawGlaciations(ctx, L) {
+    const { y0, y1 } = L.glac;
+    // Two rows: bars on top at their true positions, names underneath. They were one row
+    // to begin with, and a name displaced sideways to clear its neighbour ended up sitting
+    // on top of the NEXT glaciation's bar -- all three fall within a fifth of the axis, so
+    // there is no horizontal arrangement that keeps names off bars. Separating the rows
+    // does, and leaves the bars unmoved, which is the part that has to stay honest.
+    const top = y0 + 2;
+    const h = 7;
+    const labelY = top + h + 6;
+
+    ctx.save();
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = 'rgba(159, 180, 200, 0.75)';
+    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('glaciations', L.x0 - 6, top + h / 2);
+
+    const bars = [];
+    for (const g of this.glaciations) {
+      // Bracket ends, oldest first. onset[0] is the oldest the onset could be, onset[1] the
+      // youngest; likewise for the termination.
+      const xOnsetOld = this._xFor(g.onset[0], L);
+      const xOnsetYoung = this._xFor(g.onset[1], L);
+      const xEndOld = this._xFor(g.termination[0], L);
+      let xEndYoung = this._xFor(g.termination[1], L);
+
+      if (xEndYoung - xOnsetOld < MIN_BAR_PX) xEndYoung = xOnsetOld + MIN_BAR_PX;
+
+      // Left (older) edge fades in across the onset bracket; right edge fades out across
+      // the termination bracket. A zero-width bracket produces a hard edge, which is
+      // correct -- it means the boundary is dated to better than a pixel.
+      const on = this.hoverGlac === bars.length;
+      const grad = ctx.createLinearGradient(xOnsetOld, 0, xEndYoung, 0);
+      const span = Math.max(1e-6, xEndYoung - xOnsetOld);
+      const solid = on ? 'rgba(208, 230, 255, 0.95)' : 'rgba(176, 208, 255, 0.72)';
+      const clear = 'rgba(176, 208, 255, 0)';
+      const inAt = Math.min(1, Math.max(0, (xOnsetYoung - xOnsetOld) / span));
+      const outAt = Math.min(1, Math.max(0, (xEndOld - xOnsetOld) / span));
+      grad.addColorStop(0, clear);
+      grad.addColorStop(inAt, solid);
+      grad.addColorStop(Math.max(inAt, outAt), solid);
+      grad.addColorStop(1, g.bracketing ? solid : clear);
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(xOnsetOld, top, xEndYoung - xOnsetOld, h);
+
+      bars.push({ g, xOnsetOld, xEndYoung, top, h });
+    }
+
+    /*
+     * Names, in their own row. Each is centred under its bar, then nudged right if it
+     * would touch the previous one -- so the order always reads left to right even when
+     * two bars are a few pixels apart. A tick joins a name back to its bar whenever the
+     * nudge moved it far enough for the pairing to be in doubt.
+     */
+    ctx.font = '9px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    const LABEL_GAP = 7;
+    let cursor = L.x0;
+
+    for (let i = 0; i < bars.length; i++) {
+      const { g, xOnsetOld, xEndYoung } = bars[i];
+      const wLabel = ctx.measureText(g.name).width;
+      const barMid = (xOnsetOld + xEndYoung) / 2;
+      const lx = Math.max(barMid - wLabel / 2, cursor);
+      const labelMid = lx + wLabel / 2;
+
+      if (Math.abs(labelMid - barMid) > 2) {
+        ctx.strokeStyle = 'rgba(176, 208, 255, 0.28)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(barMid + 0.5, top + h);
+        ctx.lineTo(labelMid + 0.5, labelY - 5);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = this.hoverGlac === i
+        ? 'rgba(226, 240, 255, 0.95)' : 'rgba(200, 222, 255, 0.8)';
+      ctx.fillText(g.name, lx, labelY);
+      cursor = lx + wLabel + LABEL_GAP;
+    }
+    ctx.restore();
+  }
+
   _drawMarker(ctx, L) {
     const x = this._xFor(this.time, L);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x + 0.5, L.driver.y0);
-    ctx.lineTo(x + 0.5, this.record ? L.record.y1 : L.driver.y1);
+    ctx.lineTo(x + 0.5, this.glaciations?.length ? L.glac.y1
+      : this.record ? L.record.y1 : L.driver.y1);
     ctx.stroke();
   }
 
@@ -280,6 +399,26 @@ export class Chart {
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
     const L = this._layout();
+
+    /*
+     * The glaciation strip carries its dates on hover rather than on the chart.
+     *
+     * That is not a fallback, it is forced by the axis: across 800 Myr a pixel is about
+     * 1.5 Myr, so three of the four Cryogenian brackets are narrower than the line used to
+     * draw them and Gaskiers' whole duration is under a pixel. The bars can honestly show
+     * WHERE and ROUGHLY HOW LONG; the numbers have to be read, not measured off the strip.
+     */
+    if (this.glaciations?.length && py >= L.glac.y0 && py <= L.glac.y1) {
+      const hit = this._glaciationAt(px, L);
+      if (hit !== this.hoverGlac) {
+        this.hoverGlac = hit;
+        this.draw();
+        this._emitHover(hit == null ? null
+          : { glaciation: this.glaciations[hit], x: e.clientX, y: e.clientY });
+      }
+      return;
+    }
+    if (this.hoverGlac != null) { this.hoverGlac = null; this.draw(); this._emitHover(null); }
 
     if (py < L.driver.y0 || py > L.driver.y1 || !this.strands.length) {
       if (this.hover !== -1) { this.hover = -1; this.draw(); this._emitHover(null); }
@@ -314,6 +453,18 @@ export class Chart {
         y: e.clientY,
       });
     }
+  }
+
+  /** Index of the glaciation under `px`, with a generous pad so Gaskiers is reachable. */
+  _glaciationAt(px, L) {
+    const PAD_PX = 4;
+    for (let i = 0; i < this.glaciations.length; i++) {
+      const g = this.glaciations[i];
+      const a = this._xFor(g.onset[0], L);
+      const b = Math.max(this._xFor(g.termination[1], L), a + MIN_BAR_PX);
+      if (px >= a - PAD_PX && px <= b + PAD_PX) return i;
+    }
+    return null;
   }
 
   _emitHover(payload) {

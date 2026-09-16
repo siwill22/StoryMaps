@@ -28,6 +28,10 @@ import { Chart } from './chart.js';
 
 const REFERENCE_FILE = 'data/macdonald2019.json';
 
+// Model-independent, like the reference series: a glaciation is dated in years, not
+// reconstructed, so it does not move when the plate model does.
+const GLACIATION_FILE = 'data/glaciations.json';
+
 /*
  * Which plate models this page can place a suture in, and what to call them.
  *
@@ -43,16 +47,30 @@ const REFERENCE_FILE = 'data/macdonald2019.json';
  * independent opinions, and a page about over-confidence that quietly implied otherwise
  * would be refuting itself.
  */
+/*
+ * Oldest time each model is actually asked to draw.
+ *
+ * Both CEED entries are built for the Phanerozoic. Past the Cambrian base their plates
+ * progressively lose their rotation chains, and pygplates answers an out-of-range request
+ * with the IDENTITY rotation rather than an error -- so the map does not fail, it quietly
+ * reassembles itself into present-day geography wearing a Neoproterozoic date. That is a
+ * worse outcome than drawing nothing, so past this limit the page draws nothing and says
+ * which model to switch to.
+ */
+const NEOPROTEROZOIC_LIMIT = 540;
+
 const MODELS = {
   Merdith2021: {
     label: 'Merdith et al. 2021',
     lineage: 'Merdith / EarthByte · PLATEID1',
     topologies: true,
+    oldest: null,               // the only model built to run the full range
   },
   TorsvikCocks2017: {
     label: 'Torsvik & Cocks 2017 (CEED)',
     lineage: 'Torsvik / CEED · PLATEID_CE',
     topologies: false,
+    oldest: NEOPROTEROZOIC_LIMIT,
   },
   /*
    * The same named model, from the rotation file the published analysis actually ran on:
@@ -66,7 +84,14 @@ const MODELS = {
     label: 'CEED + Swanson-Hysell & Macdonald + Domeier',
     lineage: 'Torsvik / CEED · PLATEID_CE · source\'s own file',
     topologies: false,
+    oldest: NEOPROTEROZOIC_LIMIT,
   },
+};
+
+/** Is this model being asked for a time it was not built to answer? */
+const outOfRange = (model, time) => {
+  const oldest = MODELS[model].oldest;
+  return oldest != null && time > oldest;
 };
 
 /** Every model keeps its own data under data/<Model>/. */
@@ -197,8 +222,9 @@ async function main() {
    * model swaps all of them together.
    */
   const names = Object.keys(MODELS);
-  const [reference, ...loaded] = await Promise.all([
+  const [reference, glaciations, ...loaded] = await Promise.all([
     fetch(REFERENCE_FILE).then((r) => r.json()),
+    fetch(GLACIATION_FILE).then((r) => r.json()),
     ...names.map(async (name) => ({
       name,
       sutures: await SutureSet.load(modelFile(name, 'sutures.json')),
@@ -227,6 +253,9 @@ async function main() {
   scrubEl.min = minTime;
   scrubEl.max = maxTime;
   scrubEl.step = times[1] - times[0];
+  // The deep-time end of the axis is whatever the data actually reaches, not a constant
+  // in the markup -- changing END_TIME in build/models.py must not leave a stale label.
+  document.getElementById('ts-old').textContent = maxTime;
 
   // Slider runs backwards: present at the right, deep time at the left.
   const sliderToTime = (v) => maxTime - (Number(v) - minTime);
@@ -249,13 +278,16 @@ async function main() {
     ctx.restore();
   });
   globe.addOverlay((ctx, g) => {
+    // Ocean only past the model's range -- see NEOPROTEROZOIC_LIMIT. An empty sea is an
+    // honest answer; present-day continents under a 700 Ma label are not.
+    if (outOfRange(state.model, time)) return;
     const continents = continentsFor[state.model];
     if (g.projection === 'robinson') drawContinentsRobinson(ctx, continents, g);
     else continents.draw(ctx, g.projector);
   });
   globe.addOverlay((ctx, g) => {
     const series = seriesFor[state.model];
-    if (!series) return;
+    if (!series || outOfRange(state.model, time)) return;
     ctx.save();
     ctx.globalAlpha = BOUNDARY_DIM;
     if (g.projection === 'robinson') drawBoundariesRobinson(ctx, series, g);
@@ -263,7 +295,7 @@ async function main() {
     ctx.restore();
   });
   globe.addOverlay((ctx) => drawLatitudeBelt(ctx, globe, state));
-  globe.addOverlay((ctx) => sutures[state.model].draw(ctx, globe, {
+  globe.addOverlay((ctx) => outOfRange(state.model, time) || sutures[state.model].draw(ctx, globe, {
     time,
     definition: state.definition,
     band: state.band,
@@ -285,6 +317,16 @@ async function main() {
     values: reference.rows.map((r) => r.ice_extent),
     label: 'glacial extent',
   });
+
+  /*
+   * Dated glaciations, as interval bars in their own strip.
+   *
+   * The record curve above them stops at 525 Ma, which on a page reaching 800 Ma left the
+   * Cryogenian -- the most consequential climate events in the window -- entirely blank.
+   * They cannot join that curve: it is a continuous ice-margin latitude, while these are
+   * brackets between dated horizons. Different measurements, different encoding.
+   */
+  chart.setGlaciations(glaciations.glaciations);
 
   /*
    * The source's own published curve, shipped verbatim, drawn as a named line.
@@ -323,10 +365,11 @@ async function main() {
   chart.onHover = (payload) => {
     if (!payload) { hoverEl.classList.remove('is-on'); return; }
     hoverEl.classList.add('is-on');
-    hoverEl.innerHTML =
-      `<strong>${escapeHtml(strandLabel(payload.strand.combo))}</strong>`
-      + `<span>${Math.round(payload.value).toLocaleString()} km `
-      + `at ${Math.round(payload.time)} Ma</span>`;
+    hoverEl.innerHTML = payload.glaciation
+      ? formatGlaciation(payload.glaciation)
+      : `<strong>${escapeHtml(strandLabel(payload.strand.combo))}</strong>`
+        + `<span>${Math.round(payload.value).toLocaleString()} km `
+        + `at ${Math.round(payload.time)} Ma</span>`;
     hoverEl.style.left = `${payload.x + 14}px`;
     hoverEl.style.top = `${payload.y - 10}px`;
   };
@@ -444,10 +487,25 @@ async function main() {
 
   /* ---- render loop ------------------------------------------------------ */
 
+  const outOfRangeEl = document.getElementById('out-of-range');
+
   function render() {
     globe.set({ age: time, lon: view.lon, lat: view.lat, zoom: view.zoom });
     globe.render();
     timecodeEl.textContent = Math.round(time);
+
+    // Say which model answers this time rather than leaving a reader staring at an empty
+    // ocean wondering whether the page has broken.
+    const blank = outOfRange(state.model, time);
+    outOfRangeEl.hidden = !blank;
+    if (blank) {
+      outOfRangeEl.innerHTML =
+        `<strong>${MODELS[state.model].label}</strong> is a Phanerozoic model — `
+        + `its plates have no rotations before ${NEOPROTEROZOIC_LIMIT} Ma.<br>`
+        + 'Select the <strong>Merdith et al. 2021</strong> reconstruction for the '
+        + 'Neoproterozoic.';
+    }
+
     drawHistogram();
     chart.draw();
   }
@@ -1034,6 +1092,30 @@ function escapeHtml(s) {
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/*
+ * A glaciation's dates, on hover.
+ *
+ * The strip cannot carry these. Across 800 Myr one pixel is roughly 1.5 Myr, so three of
+ * the four Cryogenian brackets are thinner than the stroke drawing them and Gaskiers'
+ * entire duration is sub-pixel. So the bars say where, and this says how well it is known
+ * -- which is the part that matters, because the four boundaries are NOT known equally
+ * well and a reader has no way to see that from a bar.
+ */
+function formatGlaciation(g) {
+  const range = ([old, young]) => (old === young
+    ? `${old} Ma`
+    : `${old}–${young} Ma <em>(${(old - young).toFixed(1)} Myr)</em>`);
+
+  const rows = [
+    `<span>onset ${range(g.onset)}</span>`,
+    `<span>end ${range(g.termination)}</span>`,
+    `<span>duration ≈ ${(g.onset[0] - g.termination[1]).toFixed(0)} Myr</span>`,
+  ];
+  if (g.note) rows.push(`<span class="hover-note">${escapeHtml(g.note)}</span>`);
+  rows.push(`<span class="hover-note">${escapeHtml(g.source)}</span>`);
+  return `<strong>${escapeHtml(g.name)}</strong>${rows.join('')}`;
+}
+
 function attachCollapse(panelEl, toggleEl) {
   toggleEl.addEventListener('click', () => {
     const collapsed = panelEl.classList.toggle('is-collapsed');
@@ -1048,6 +1130,12 @@ function attachControls(stageEl, globe, view, render) {
   let lastY = 0;
 
   stageEl.addEventListener('pointerdown', (e) => {
+    // The projection toggle sits INSIDE the stage, over the map. Without this guard,
+    // pressing it started a drag and called setPointerCapture on the stage, which
+    // retargets the following pointerup -- so no click event ever reached the button and
+    // the control silently did nothing. Any interactive element in the stage has the same
+    // problem, so exempt them all rather than naming one.
+    if (e.target.closest('button, input, select, textarea, a')) return;
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;

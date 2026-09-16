@@ -66,6 +66,7 @@ data/<Model>/boundaries.json      topological models only
 data/<Model>/frames/…             topological models only
 data/<Model>/velocities.json      topological models only
 data/macdonald2019.json           model-independent, published series
+data/glaciations.json             model-independent, dated glaciations
 ```
 
 **Torsvik & Cocks has no topologies**, so no closed plates, so no boundaries and no velocity
@@ -84,6 +85,7 @@ appear under a model it does not belong to.
 |---|---|---|
 | Driver curves | **individual lines** | constructed; each is a real choice somebody could defend |
 | Glacial extent | **shaded band** | measured, with a published source |
+| Glaciations | **interval bars, fading across each bracket** | dated, with a published bracket |
 
 A translucent hull over the strands would read as a 95% confidence interval to anyone who
 has seen one — and the spread here is not an uncertainty, it is a set of alternatives. So
@@ -91,6 +93,37 @@ the strands are never filled. Shaded means measured; lines mean constructed.
 
 For the same reason the page says **"choices"** and **"sensitivity"** for anything
 reconstructed and reserves **"uncertainty"** for measured quantities with published error.
+
+### Neoproterozoic glaciations
+
+The glacial-extent curve is Macdonald's `IceExtent_Myr.csv` and it **stops at 525 Ma** — so
+on an axis reaching 800 Ma the Cryogenian, the most consequential climate interval in the
+window, was blank. The glaciations are added as a separate strip rather than folded into
+that curve, because they are not the same measurement: one is a continuous ice-margin
+latitude, the other is a set of brackets between dated horizons. Drawing the second as a
+curve would invent a continuity the geochronology does not have.
+
+Ages are copied verbatim from Hoffman et al. (2017) Table 1, with Gaskiers from Pu et al.
+(2016). **Every boundary is a range**, and each is drawn at the real width of its bracket —
+solid where the age is pinned, fading out where it is not:
+
+| | onset | termination |
+|---|---|---|
+| Sturtian | 717.5–716.3 Ma | 659.3–658.5 Ma |
+| Marinoan | **649.9–639.0 Ma** | 636.0–634.7 Ma |
+| Gaskiers | 580.90 Ma | 579.88 Ma |
+
+Three of the four Cryogenian boundaries are known to a little over 1 Myr and read as hard
+edges. The Marinoan onset is loose over **10.9 Myr** and visibly dissolves — it is bracketed
+only by a pre-Marinoan Re-Os age of 645.1 ± 4.8 Ma in South Australia and a syn-Marinoan
+U-Pb age of 639.3 ± 0.3 Ma from the Ghaub Formation in Namibia. Nothing on the page asserts
+that; the bar just looks like what the data is.
+
+**Two admitted distortions.** Across 800 Myr a pixel is roughly 1.5 Myr, so most of those
+brackets are narrower than the line drawing them — the numbers are on hover, not measurable
+off the strip. And Gaskiers' ~1 Myr duration is sub-pixel, so its bar is widened to a 4 px
+minimum to stay findable; its hover says so, and that those two dates bracket the diamictite
+rather than dating the glaciation itself.
 
 ## The globe is where a parameter becomes concrete
 
@@ -155,10 +188,11 @@ page's own number.
 ## Rebuild the data
 
 ```sh
-conda run -n pygmt17 python build/build_boundaries.py        # boundaries + velocities, 0-1000 Ma
+conda run -n pygmt17 python build/build_boundaries.py        # boundaries + velocities, 0-800 Ma
 conda run -n pygmt17 python build/build_continents.py        # continent polygons
 conda run -n pygmt17 python build/build_sutures.py           # the suture layer, per model
 python3 build/build_reference_series.py                      # published series, verbatim
+python3 build/build_glaciations.py                           # dated glaciations, verbatim
 ```
 
 `build/models.py` declares the model registry all three build scripts read, so a model
@@ -172,7 +206,7 @@ all pages the wrong implication. It also keeps a model's frames to ~18 MB instea
 which is what makes carrying more than one model affordable. Cost: playback is slightly
 steppier than on the siblings.
 
-`build_reference_series.py` needs only the standard library.
+`build_reference_series.py` and `build_glaciations.py` need only the standard library.
 
 ## Plate-ID validity — the failure this build had to be taught to catch
 

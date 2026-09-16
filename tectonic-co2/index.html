@@ -13,6 +13,7 @@
   <div class="stage-layer stage-globe" id="globe"></div>
   <canvas class="lat-hist" id="lat-hist" aria-label="Active suture length by latitude"></canvas>
   <button id="projection-toggle" class="proj-toggle" type="button">Globe</button>
+  <p class="out-of-range" id="out-of-range" role="status" hidden></p>
 </div>
 
 <div class="strand-hover" id="strand-hover" role="tooltip"></div>
@@ -34,9 +35,10 @@
     <button id="play" type="button" aria-label="Play through time">▶</button>
     <div class="timestack">
       <div class="chart" id="chart"></div>
-      <input id="scrub" type="range" min="0" max="1000" step="5" value="550"
+      <!-- min/max/step are reset from the data at load; these are the pre-load values. -->
+      <input id="scrub" type="range" min="0" max="800" step="5" value="355"
              aria-label="Reconstruction time in Ma, increasing to the left">
-      <span class="ticks"><span>1000</span><span id="ts-note"></span><span>0 Ma</span></span>
+      <span class="ticks"><span id="ts-old">800</span><span id="ts-note"></span><span>0 Ma</span></span>
     </div>
   </div>
   <button id="timebar-toggle" class="panel-toggle" type="button"
