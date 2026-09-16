@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tectonic drivers of atmospheric CO₂ — prototype</title>
+<meta name="description" content="Prototype: active suture length in the tropics, reconstructed under every combination of plate model, activity definition and latitude band the source dataset enumerates.">
+<link rel="stylesheet" href="css/story.css">
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="stage-layer stage-globe" id="globe"></div>
+  <canvas class="lat-hist" id="lat-hist" aria-label="Active suture length by latitude"></canvas>
+  <button id="projection-toggle" class="proj-toggle" type="button">Globe</button>
+</div>
+
+<div class="strand-hover" id="strand-hover" role="tooltip"></div>
+<div class="suture-popup" id="suture-hover" role="tooltip"></div>
+
+<div class="loading" id="loading"><span>Loading reconstruction…</span></div>
+
+<header class="titlecard">
+  <p class="kicker">Prototype</p>
+  <h1>Active sutures at <span id="timecode">450</span> Ma</h1>
+  <p class="standfirst">
+    Tropical suture length is not a measurement. It is the output of three choices, all of
+    which the source dataset enumerates and one of which got published. Move them.
+  </p>
+</header>
+
+<div class="timebar" id="timebar">
+  <div class="timebar-body" id="timebar-body">
+    <button id="play" type="button" aria-label="Play through time">▶</button>
+    <div class="timestack">
+      <div class="chart" id="chart"></div>
+      <input id="scrub" type="range" min="0" max="1000" step="5" value="550"
+             aria-label="Reconstruction time in Ma, increasing to the left">
+      <span class="ticks"><span>1000</span><span id="ts-note"></span><span>0 Ma</span></span>
+    </div>
+  </div>
+  <button id="timebar-toggle" class="panel-toggle" type="button"
+          aria-label="Collapse time controls" aria-expanded="true" aria-controls="timebar-body">−</button>
+</div>
+
+<aside class="legend" id="legend">
+  <button id="legend-toggle" class="panel-toggle" type="button"
+          aria-label="Collapse controls" aria-expanded="true" aria-controls="legend-body">−</button>
+  <div class="legend-body" id="legend-body">
+
+    <div id="knobs"></div>
+
+    <h2 class="legend-sub">Reading the chart</h2>
+    <p class="hint">
+      Each faint line is one combination of the choices above — a real setting somebody
+      could defend, not a quantile. The bright line is the combination currently set.
+      Hover a line to name it, click to snap the controls to it. The shaded band beneath
+      is measured, and is drawn differently for that reason.
+    </p>
+
+    <h2 class="legend-sub">What the reconstruction lost</h2>
+    <ul class="coverage" id="coverage-note"></ul>
+    <p class="caveat">
+      Plate IDs were assigned by the source against the models it used. Where a plate's
+      rotation chain does not reach a suture's own age, the suture is dropped or its window
+      clamped rather than drawn at its present-day position — which is what asking for a
+      rotation outside a plate's defined range silently returns. The two models lose
+      different sutures, so part of any gap between their curves in deep time is model
+      coverage, not geology.
+    </p>
+
+    <h2 class="legend-sub">Sources</h2>
+    <p class="caveat">
+      Sutures, activity intervals, plate-ID assignments and the glacial record: Macdonald,
+      Swanson-Hysell, Park, Lisiecki &amp; Jagoutz (2019), <em>Science</em> 364, 181–184,
+      as published in the authors' <em>Arc_Continent_Analysis</em> repository. Latitude
+      bands ±10/15/20/40° are that dataset's own columns.
+    </p>
+    <p class="caveat">
+      Reconstructions: Merdith et al. (2021); Torsvik &amp; Cocks (2017), CEED.
+      <strong>Plate IDs are the source's own</strong> — its attribute table carries one
+      column per frame (<code>PLATEID1</code>, <code>PLATEID_CE</code>) and this page
+      assigns none. Which column belongs to which model was established by test, not by the
+      column names. <strong>Selecting a model swaps its continents, boundaries and sutures
+      together</strong>; Torsvik &amp; Cocks has no topologies, so no plate boundaries are
+      drawn for it. Continent polygons include the submerged shelf, so they run wider than a
+      coastline.
+    </p>
+
+    <h2 class="legend-sub">Further reading</h2>
+    <p class="caveat">
+      Works that interpret these quantities. No curve on this page is theirs, and the
+      numbers here will not reproduce theirs exactly.
+      Macdonald et al. (2019), <em>Science</em>;
+      Gernon, Hincks et al. (2021), <em>Nature Geoscience</em>;
+      McKenzie et al. (2016), <em>Science</em>;
+      Raymo &amp; Ruddiman (1992), <em>Nature</em>;
+      Brune et al. (2017), <em>Nature Geoscience</em>.
+    </p>
+  </div>
+</aside>
+
+<script type="module" src="js/story.js"></script>
+
+</body>
+</html>

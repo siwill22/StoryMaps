@@ -21,6 +21,10 @@ zircons/data/
 !detrital-zircons/**
 detrital-zircons/data/
 
+!tectonic-co2/
+!tectonic-co2/**
+tectonic-co2/data/
+
 # Still exclude OS/tooling cruft even inside tracked folders.
 .DS_Store
 __pycache__/
