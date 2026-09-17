@@ -734,17 +734,6 @@ html, body {
 .knob-opt.is-ours { border-style: dashed; border-color: rgba(255, 196, 92, 0.5); }
 .knob-opt.is-ours.is-on { background: rgba(255, 196, 92, 0.9); }
 
-.knob-vary {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-top: 0.3rem;
-  font-size: 0.66rem;
-  color: var(--ink-dim);
-  cursor: pointer;
-}
-.knob-vary input { accent-color: var(--accent); }
-
 /* ---- strand hover ------------------------------------------------------ */
 
 .strand-hover {

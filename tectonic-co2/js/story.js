@@ -170,24 +170,6 @@ const state = {
   definition: 'ex_max_min',
   band: 15,
   weighting: 'step',
-  /*
-   * Which knobs vary across the drawn bundle. Turn one off and watch the bundle collapse
-   * -- or not. That is the difference between "everything is uncertain" and "the result
-   * rests on this one choice".
-   *
-   * `definition` is OFF by default, and the reason is not presentational. The four
-   * definitions do not all measure the same kind of quantity: Ex_max is cumulative -- a
-   * suture starts counting at exhumation onset and never stops -- while the other three
-   * are moving windows. Measured here, Ex_max at +-40 degrees peaks at 86,000 km against
-   * 12,000 km for Ex_max_min at +-15, a factor of 7. Drawn together on one linear axis
-   * the windowed strands collapse onto the floor, and worse, the bundle would be
-   * implying that a cumulative total and an instantaneous length are alternative
-   * estimates of one thing. They are not. Mixing them is exactly the sloppy comparison
-   * this page objects to elsewhere, so it is not the default -- but it stays available,
-   * because seeing the axis jump when you enable it is the clearest way to learn that
-   * the choice is not a detail.
-   */
-  vary: { model: true, definition: false, band: true, weighting: false },
 };
 
 function strandKey(c) {
@@ -374,13 +356,21 @@ async function main() {
     hoverEl.style.top = `${payload.y - 10}px`;
   };
 
-  /** Enumerate every combination the enabled contributors allow, and curve each. */
+  /*
+   * Enumerate every combination the page draws, and curve each.
+   *
+   * Model, band and weighting always draw their full set -- this is not a default that
+   * a reader can narrow, it is the page's stated design: the spaghetti IS the choice
+   * space, enumerated, not a summary of it. Definition never varies, for the opposite
+   * reason -- see its knob note for why the four intervals are not commensurable enough
+   * to bundle together.
+   */
   function rebuild() {
     const axes = {
-      model: state.vary.model ? Object.keys(MODELS) : [state.model],
-      definition: state.vary.definition ? Object.keys(DEFINITIONS) : [state.definition],
-      band: state.vary.band ? BANDS : [state.band],
-      weighting: state.vary.weighting ? Object.keys(WEIGHTINGS) : [state.weighting],
+      model: Object.keys(MODELS),
+      definition: [state.definition],
+      band: BANDS,
+      weighting: Object.keys(WEIGHTINGS),
     };
 
     const combos = [];
@@ -606,12 +596,23 @@ async function main() {
   function startPlaying() {
     playEl.textContent = '❚❚';
     let last = performance.now();
+    // A continuous accumulator, separate from `time`. setTime() snaps its argument to the
+    // nearest 5 Myr grid step and stores only that snapped value -- correctly, since a
+    // suture frame only exists on the grid. But at a normal frame rate each frame advances
+    // well under the 2.5 Myr needed to round up to the next step, so if this loop fed its
+    // own increment off the snapped `time` instead, every frame's fractional progress would
+    // be discarded and playback would never move: the clock would sit at its starting frame
+    // forever while the button still read "playing". Accumulating separately here is what
+    // lets that sub-step progress survive from one frame to the next.
+    let clock = time;
     const step = (now) => {
       const dt = Math.min((now - last) / 1000, 0.25);
       last = now;
-      let next = time + dt * PLAY_MYR_PER_SECOND;
-      if (next > maxTime) next = minTime;
-      setTime(next);
+      // Old to young: the clock counts DOWN, wrapping from the present back to the
+      // deepest time once it passes 0 Ma.
+      clock -= dt * PLAY_MYR_PER_SECOND;
+      if (clock < minTime) clock = maxTime;
+      setTime(clock);
       playing = requestAnimationFrame(step);
     };
     playing = requestAnimationFrame(step);
@@ -954,8 +955,13 @@ function buildKnobs(onChange) {
       key: 'definition',
       title: 'When is a suture active?',
       provenance: 'sourced',
-      note: 'All four intervals are tabulated by the source. Its published curve used the '
-          + 'exhumation interval.',
+      note: 'All four intervals are tabulated by the source, but this page only ever '
+          + 'draws the one selected here — never all four at once, unlike the other '
+          + 'three controls. Ex_max is cumulative and not directly comparable to the '
+          + 'other three: its ±40° peak is roughly 7× Ex_max_min\'s at ±15°. Drawing '
+          + 'them together would squash the windowed ones flat and misrepresent all '
+          + 'four as rival estimates of the same thing, which they are not. Its '
+          + 'published curve used the exhumation interval.',
       options: Object.entries(DEFINITIONS).map(([k, d]) => ({
         value: k, label: d.label, sub: d.note,
       })),
@@ -1008,16 +1014,6 @@ function buildKnobs(onChange) {
       inputs.push({ group: g.key, value: opt.value, el: btn });
     }
     section.appendChild(list);
-
-    const vary = document.createElement('label');
-    vary.className = 'knob-vary';
-    vary.innerHTML = `<input type="checkbox"${state.vary[g.key] ? ' checked' : ''}>`
-      + '<span>vary across the bundle</span>';
-    vary.querySelector('input').addEventListener('change', (e) => {
-      state.vary[g.key] = e.currentTarget.checked;
-      onChange();
-    });
-    section.appendChild(vary);
 
     host.appendChild(section);
   }

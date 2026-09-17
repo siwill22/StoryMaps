@@ -1,12 +1,14 @@
-# Tectonic drivers of atmospheric CO₂ — prototype
+# Tropical suture length — a tectonic control on weathering
 
 Active suture length in the tropics, reconstructed under every combination of plate model,
 activity definition and latitude band the source dataset enumerates — with all of them
 drawn at once.
 
-This is the **walking skeleton** of the page described in [PLAN.md](PLAN.md): one driver,
-end to end, to prove the knob → belt → bundle loop before the other drivers are built on
-the same pattern. See PLAN.md for the full design and the v2 queue.
+**This page is scoped to that one mechanism, permanently.** It is not a step toward a
+page that also draws LIP degassing, continental-arc length or a source-vs-sink synthesis
+— those are planned as separate sibling pages instead, each single-driver in this same
+style, with a synthesis page bringing them together once they all exist. See
+[PLAN.md](PLAN.md) for the reasoning and the family roadmap.
 
 Same family as [../plate-boundaries](../plate-boundaries/), [../zircons](../zircons/) and
 [../detrital-zircons](../detrital-zircons/); see those READMEs for anything about the
@@ -20,9 +22,11 @@ python3 -m http.server 8777
 # then open http://localhost:8777/tectonic-co2/
 ```
 
-Drag to pan, scroll to zoom, scrub or press ▶. Click a control to set it; tick *vary
-across the bundle* to let it spread. Hover a line in the chart to name it, click to snap
-the controls to it. **Globe / Map** switches projection. `#lon,lat,zoom,time` pins the view.
+Drag to pan, scroll to zoom, scrub or press ▶. Click a control to set which value it
+highlights — plate model, band and weighting always draw every value at once regardless
+of which is clicked; activity definition always draws only the one clicked. Hover a line
+in the chart to name it, click to snap the controls to it. **Globe / Map** switches
+projection. `#lon,lat,zoom,time` pins the view.
 
 ## What the page is for
 
@@ -416,20 +420,21 @@ mistaken for something the published analysis exercised.
 
 ## Known limitations
 
-- **Activity definitions are not all commensurable.** `Ex_max` is cumulative — a suture
-  starts counting at exhumation onset and never stops — while the other three are moving
-  windows. `Ex_max` at ±40° peaks at ~86,000 km against ~12,000 km for `Ex_max_min` at ±15°.
-  Drawn together they squash the windowed strands onto the floor *and* imply the two are
-  alternative estimates of one thing, which they are not. So that control does not vary
-  across the bundle by default. It stays available, because watching the axis jump when you
-  enable it is the clearest way to learn the choice is not a detail.
-- **One driver only.** Suture length is the skeleton; ridge, subduction, continental arc and
-  rift lengths are the next build, off a latitude-binned primitive array rather than
-  discrete reconstructed features. The chart consumes a reduced curve precisely so it does
-  not care which.
-- **No CO₂ record yet.** Glacial extent is the only observation drawn. The proxy
-  compilation (six methods with their own bounds, from `pySCION/data/geochem_data_2020.mat`)
-  and the Sr curve come with the other drivers.
+- **Activity definitions are not all commensurable, so this page never lets that one
+  vary.** `Ex_max` is cumulative — a suture starts counting at exhumation onset and never
+  stops — while the other three are moving windows. `Ex_max` at ±40° peaks at ~86,000 km
+  against ~12,000 km for `Ex_max_min` at ±15°. Drawn together they would squash the
+  windowed strands onto the floor *and* imply the four are alternative estimates of one
+  thing, which they are not. So plate model, latitude band and band-edge weighting always
+  draw their full enumerated set — that is the page's whole point, a bundle of every
+  defensible choice — but activity definition always draws only the one currently
+  selected. See that knob's own on-page note for the numbers.
+- **One driver, permanently.** This page is tropical suture length and nothing else — not
+  a step toward a page that also draws ridge, subduction, continental-arc and rift
+  length. Those become separate sibling pages instead, each single-driver in the same
+  style; a synthesis page bringing them together is planned last, once they all exist.
+- **No CO₂ proxy record.** Glacial extent is the only observation drawn on this page. The
+  CO₂ proxy compilation and the Sr curve belong to the eventual synthesis page, not here.
 - Subduction-polarity triangles are not drawn in Robinson — inherited from
   ../detrital-zircons' own Robinson overlays, which this page copies. Known simplification.
 - Continent polygons include the submerged shelf, so land runs wider than a coastline.
@@ -438,13 +443,23 @@ mistaken for something the published analysis exercised.
 
 ## Sources
 
-Sutures, activity intervals, plate-ID assignments, the glacial record and the published
-comparison curve: Macdonald, F.A., Swanson-Hysell, N.L., Park, Y., Lisiecki, L. & Jagoutz, O.
-(2019), *Arc-continent collisions in the tropics set Earth's climate state*, **Science** 364,
-181–184, as published in the authors' `Arc_Continent_Analysis` repository.
+Sutures, activity intervals, plate-ID assignments, glacial extent (0–525 Ma) and the
+published comparison curve: Macdonald, F.A., Swanson-Hysell, N.L., Park, Y., Lisiecki, L. &
+Jagoutz, O. (2019), *Arc-continent collisions in the tropics set Earth's climate state*,
+**Science** 364, 181–184, as published in the authors' `Arc_Continent_Analysis` repository.
 
-Reconstructions: Merdith et al. (2021); Torsvik & Cocks (2017), CEED. Plate-ID assignments
-for both are the source's own columns — see above.
+Glaciations older than that record (717–580 Ma): Hoffman et al. (2017), *Science Advances*
+3, e1600983, Table 1; Gaskiers from Pu et al. (2016), *Geology* 44, 955–958. A different
+quantity from the extent curve above, composed alongside it — see "Neoproterozoic
+glaciations" above.
+
+Reconstructions: Merdith et al. (2021); Torsvik & Cocks (2017), CEED, both as gprm
+distributes it and as the source's own repository ships it (Swanson-Hysell & Macdonald +
+Domeier 2018). Plate-ID assignments for all three are the source's own columns — see above.
+
+Every dataset above is tracked family-wide in
+[`../shared/data/registry.json`](../shared/data/registry.json), alongside genuine
+alternatives and the choices made turning a source into a curve.
 
 ### Further reading
 

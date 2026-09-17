@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tectonic drivers of atmospheric CO₂ — prototype</title>
-<meta name="description" content="Prototype: active suture length in the tropics, reconstructed under every combination of plate model, activity definition and latitude band the source dataset enumerates.">
+<title>Tropical suture length — a tectonic control on weathering</title>
+<meta name="description" content="Active suture length in the tropics, reconstructed under every combination of plate model, activity definition and latitude band the source dataset enumerates, and drawn all at once.">
 <link rel="stylesheet" href="css/story.css">
 </head>
 <body>
@@ -73,20 +73,36 @@
 
     <h2 class="legend-sub">Sources</h2>
     <p class="caveat">
-      Sutures, activity intervals, plate-ID assignments and the glacial record: Macdonald,
-      Swanson-Hysell, Park, Lisiecki &amp; Jagoutz (2019), <em>Science</em> 364, 181–184,
-      as published in the authors' <em>Arc_Continent_Analysis</em> repository. Latitude
-      bands ±10/15/20/40° are that dataset's own columns.
+      Sutures, activity intervals, plate-ID assignments and glacial extent (0–525 Ma):
+      Macdonald, Swanson-Hysell, Park, Lisiecki &amp; Jagoutz (2019), <em>Science</em> 364,
+      181–184, as published in the authors' <em>Arc_Continent_Analysis</em> repository.
+      Latitude bands ±10/15/20/40° are that dataset's own columns.
     </p>
     <p class="caveat">
-      Reconstructions: Merdith et al. (2021); Torsvik &amp; Cocks (2017), CEED.
+      Glaciations older than the record above (717–580 Ma): Hoffman et al. (2017),
+      <em>Science Advances</em> 3, e1600983, Table 1; Gaskiers from Pu et al. (2016),
+      <em>Geology</em> 44, 955–958. <strong>These are a different quantity, not a
+      continuation</strong> — dated interval brackets, not a continuous ice-margin
+      latitude — composed alongside the extent curve rather than replacing it. 580–525 Ma
+      is covered by neither and is drawn as no data.
+    </p>
+    <p class="caveat">
+      Reconstructions: Merdith et al. (2021); Torsvik &amp; Cocks (2017), CEED, both as
+      gprm distributes it and as the source's own repository ships it (Swanson-Hysell &amp;
+      Macdonald + Domeier 2018) — the two disagree by 13° of Laurentian latitude at 445 Ma.
       <strong>Plate IDs are the source's own</strong> — its attribute table carries one
       column per frame (<code>PLATEID1</code>, <code>PLATEID_CE</code>) and this page
       assigns none. Which column belongs to which model was established by test, not by the
       column names. <strong>Selecting a model swaps its continents, boundaries and sutures
-      together</strong>; Torsvik &amp; Cocks has no topologies, so no plate boundaries are
-      drawn for it. Continent polygons include the submerged shelf, so they run wider than a
+      together</strong>; only Merdith has topologies, so plate boundaries draw for that
+      model alone. Continent polygons include the submerged shelf, so they run wider than a
       coastline.
+    </p>
+    <p class="caveat">
+      Every dataset above is tracked family-wide, alongside genuine alternatives and the
+      choices made turning a source into a curve, in
+      <a href="../shared/data/registry.json"><code>shared/data/registry.json</code></a> —
+      shared with the other viewers in this project rather than decided fresh by each one.
     </p>
 
     <h2 class="legend-sub">Further reading</h2>

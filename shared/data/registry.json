@@ -1,0 +1,199 @@
+{
+  "$comment": [
+    "Central awareness of the datasets these viewers draw, and of the decisions taken",
+    "between a published source and the thing on screen.",
+    "",
+    "WHY THIS EXISTS. Two viewers in this family independently built a file called",
+    "glaciations.json from the same underlying compilation, with different schemas, and",
+    "neither knew about the other. Nothing was wrong with either -- but a third viewer",
+    "would have built a third, and by then 'what does this family say about glaciation'",
+    "would have had no answer. This file is that answer.",
+    "",
+    "WHAT IT IS NOT. It is not a canon. These pages are built on the position that several",
+    "defensible reconstructions exist and a reader should be able to move between them;",
+    "the same applies to every other dataset. So where genuine alternatives exist they are",
+    "all listed, none is marked correct, and a viewer is expected to offer the choice",
+    "rather than quietly pick one. Inconsistency between viewers is acceptable. Undeclared",
+    "inconsistency is not.",
+    "",
+    "THE PART THAT MATTERS MOST is `derivation_choices`. A source publishes something; a",
+    "viewer draws something; between the two sit decisions -- a smoothing window, a gap",
+    "bridge, a latitude band, a time step. Those are invisible in the rendered page and",
+    "invisible in the data file, and they are exactly what these viewers exist to surface.",
+    "Anything in `derivation_choices` is OURS, not the source's, and should be marked that",
+    "way wherever it reaches a UI.",
+    "",
+    "RELATIONSHIPS between entries under one concept:",
+    "  variant   - competing estimates of the SAME quantity over the SAME range. A knob.",
+    "  component - different quantities, or the same one over a DIFFERENT range, composed",
+    "              into one display. Not a choice: a join, whose seams must be declared.",
+    "  reduction - the same data processed into a different shape, with the processing",
+    "              parameters recorded in derivation_choices.",
+    "",
+    "`covers_ma` is [oldest, youngest]. Outside it the answer is NO DATA, which is not the",
+    "same as zero and must never be drawn as though it were."
+  ],
+
+  "schema_version": 1,
+
+  "concepts": {
+
+    "glacial_extent": {
+      "quantity": "angular distance from the pole reached by ice, degrees",
+      "note": "The margin latitude is 90 minus this.",
+      "entries": [
+        {
+          "id": "macdonald2019",
+          "relationship": "component",
+          "covers_ma": [525.0, 0.0],
+          "source": "Macdonald, F.A., Swanson-Hysell, N.L., Park, Y., Lisiecki, L. & Jagoutz, O. (2019), Science 364, 181-184",
+          "provenance": [
+            "tectonic-co2 reads it from the authors' own code_output/ice_LIP_suture_lengths.csv",
+            "lips reads it from Ice_Extent.csv in Park et al. (2020)'s repository, their digitisation of the same figure"
+          ],
+          "verified": "The two paths were compared at all 105 overlapping ages and agree exactly. They are not variants; they are the same numbers by two routes.",
+          "derivation_choices": {},
+          "used_by": ["tectonic-co2", "lips"],
+          "files": ["tectonic-co2/data/macdonald2019.json", "lips/data/ice_extent.csv"]
+        },
+        {
+          "id": "macdonald2019-intervals",
+          "relationship": "reduction",
+          "of": "macdonald2019",
+          "covers_ma": [525.0, 0.0],
+          "quantity": "contiguous glaciated intervals with a peak extent each",
+          "source": "as macdonald2019, reduced to discrete intervals by this project",
+          "derivation_choices": {
+            "bridge_myr": {
+              "value": 3,
+              "what": "Gaps in the continuous record shorter than this are bridged, merging what would otherwise be two glaciations into one.",
+              "whose": "ours",
+              "effect": "Changes how many glaciations the record contains. Not a published parameter."
+            }
+          },
+          "used_by": ["lips"],
+          "files": ["lips/data/glaciations.json"]
+        }
+      ]
+    },
+
+    "cryogenian_glaciation": {
+      "quantity": "dated glaciation intervals, each boundary a bracket between two dated horizons",
+      "note": "A different quantity from glacial_extent, over a range that compilation does not reach. Composed with it, never substituted for it. THE SEAM: 579.88-525 Ma is covered by neither and is NO DATA.",
+      "entries": [
+        {
+          "id": "hoffman2017-pu2016",
+          "relationship": "component",
+          "covers_ma": [717.5, 579.88],
+          "source": "Hoffman, P.F. et al. (2017), Science Advances 3(11), e1600983, Table 1; Gaskiers from Pu, J.P. et al. (2016), Geology 44(11), 955-958",
+          "derivation_choices": {},
+          "used_by": ["tectonic-co2"],
+          "files": ["tectonic-co2/data/glaciations.json"]
+        }
+      ],
+      "known_alternatives": [
+        {
+          "id": "rooney2015",
+          "status": "not a variant -- do not build as one",
+          "source": "Rooney, A.D., Strauss, J.V., Brandon, A.D. & Macdonald, F.A. (2015), Geology 43, 459-462",
+          "why": "It reads as a rival chronology (Sturtian 717-660 Ma, Marinoan termination 635 Ma) but it is not one: Hoffman et al. (2017) Table 1 cites Rooney's individual Re-Os dates among its own constraints -- 662.4 +/- 3.9 Ma for Laurentia, 659.0 +/- 4.5 for Tuva-Mongolia, >632.3 +/- 5.9 for the basal Sheepbed. Rooney is an INPUT to the entry above, not an alternative to it. Offering both as a knob would invent a disagreement that does not exist.",
+          "a_real_variant_would_be": "A compilation drawing on a different body of geochronology, or one weighting the same constraints differently -- e.g. resolving the Sturtian termination toward Laurentia's 662.4 Ma rather than Hoffman's synthesised 659.3-658.5 Ma window. None is currently on disk."
+        }
+      ]
+    },
+
+    "plate_reconstruction": {
+      "quantity": "rotations, and the polygons they move",
+      "note": "The clearest case of genuine variants in this family, and the one the other concepts should be modelled on: several defensible models, all offered, none marked correct.",
+      "entries": [
+        {
+          "id": "Merdith2021",
+          "relationship": "variant",
+          "covers_ma": [1000.0, 0.0],
+          "source": "Merdith, A.S. et al. (2021), Earth-Science Reviews 214, 103477",
+          "capabilities": ["topologies", "continent_polygons"],
+          "derivation_choices": {
+            "anchor_plate": { "value": 0, "whose": "source's convention", "effect": "Its 001-relative-to-000 sequence is identity, so 0 and 1 agree here." }
+          },
+          "used_by": ["tectonic-co2", "zircons", "detrital-zircons", "lips", "plate-boundaries"]
+        },
+        {
+          "id": "TorsvikCocks2017",
+          "relationship": "variant",
+          "covers_ma": [540.0, 0.0],
+          "source": "Torsvik, T.H. & Cocks, L.R.M. (2017), Earth History and Palaeogeography, Cambridge University Press",
+          "rotation_file": "gprm's Torsvik_Cocks_HybridRotationFile.rot",
+          "capabilities": ["continent_polygons"],
+          "derivation_choices": {
+            "anchor_plate": { "value": 1, "whose": "source's convention", "effect": "Plate 001 is the spin axis in this model; anchoring on 000 moves paleolatitude by up to ~9 degrees." }
+          },
+          "used_by": ["tectonic-co2"]
+        },
+        {
+          "id": "TC2017_SHM2017_D2018",
+          "relationship": "variant",
+          "covers_ma": [540.0, 0.0],
+          "source": "Torsvik & Cocks 2017 + Swanson-Hysell & Macdonald + Domeier (2018), as distributed in Macdonald et al.'s Arc_Continent_Analysis repository",
+          "rotation_file": "TC2017_SHM2017_D2018.rot",
+          "capabilities": ["continent_polygons"],
+          "note": "The SAME NAMED MODEL as TorsvikCocks2017 from a different rotation file. At 445 Ma they place Laurentia 13 degrees apart in latitude, which roughly halves tropical suture length at the Hirnantian. Kept as separate entries deliberately: that disagreement is the point, not a defect to reconcile.",
+          "derivation_choices": {
+            "anchor_plate": { "value": 1, "whose": "source's convention", "effect": "as TorsvikCocks2017" }
+          },
+          "used_by": ["tectonic-co2"]
+        }
+      ]
+    },
+
+    "suture_compilation": {
+      "quantity": "ophiolite-bearing suture geometry with magmatic, metamorphic and exhumation age intervals",
+      "entries": [
+        {
+          "id": "macdonald2019-sutures",
+          "relationship": "component",
+          "covers_ma": [1090.0, 0.0],
+          "source": "Macdonald et al. (2019), Science 364, 181-184; Suture_Lines_M2021.geojson",
+          "note": "115 sutures. Carries three plate-ID columns of its own -- PLATEID1 (Merdith2021), PLATEID_M (Matthews2016), PLATEID_CE (CEED). This project assigns no plate IDs.",
+          "derivation_choices": {
+            "activity_definition": { "value": "reader's choice of four", "whose": "source tabulates all four; the published curve used one", "effect": "Which age interval counts as 'active'." },
+            "latitude_band": { "value": "reader's choice of +/-10/15/20/40", "whose": "source's own output columns", "effect": "What counts as tropical." },
+            "band_edge": { "value": "hard or cosine taper", "whose": "hard is published; the taper is OURS", "effect": "Whether a suture crossing the edge counts fully or partly." },
+            "time_step_myr": { "value": 5, "whose": "ours", "effect": "Matches the source's own 5 Myr output rather than implying finer precision." }
+          },
+          "used_by": ["tectonic-co2"],
+          "files": ["tectonic-co2/data/*/sutures.json"]
+        }
+      ]
+    },
+
+    "lip_compilation": {
+      "quantity": "large igneous province extents and areas through time",
+      "entries": [
+        {
+          "id": "ernst-youbi2017-park2020",
+          "relationship": "component",
+          "source": "Ernst, R.E. & Youbi, N. (2017) present-day extents, edited by Park et al. (2020), AGU Geophysical Monograph 255, doi:10.1002/9781119507444",
+          "known_alternatives": [
+            { "id": "green2022", "status": "wanted, not built", "source": "Green et al. (2022), PNAS, doi:10.1073/pnas.2120441119" }
+          ],
+          "used_by": ["lips"],
+          "files": ["lips/data/lips_earthbyte.json", "lips/data/lip_flux.json"]
+        }
+      ]
+    },
+
+    "continental_arc_length": {
+      "quantity": "continental arc length through time, km",
+      "entries": [
+        {
+          "id": "cao2017",
+          "relationship": "component",
+          "covers_ma": [410.0, 0.0],
+          "source": "Cao, W., Zahirovic, S., Flament, N., Williams, S., Golonka, J. & Muller, R.D. (2017), Biogeosciences 14, 5425-5439",
+          "note": "Shipped inside tectonic-co2/data/macdonald2019.json as the continental_arc_Cao2017 column, verbatim. Binned at 10 Myr by the source.",
+          "used_by": ["tectonic-co2"]
+        }
+      ]
+    }
+  }
+}

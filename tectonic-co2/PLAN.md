@@ -1,10 +1,28 @@
 # tectonic-co2 — plan
 
 A sibling page in the StoryMaps family (`plate-boundaries` → `zircons` → `detrital-zircons` →
-this), about tectonic controls on atmospheric CO₂ through time — degassing and sequestration.
+this), about **one** tectonic control on atmospheric CO₂: tropical suture length, i.e.
+weatherability via suture erosion.
 
 Self-contained `build/ css/ js/ data/`, reusing `shared/js/globe.js` (orthographic + Robinson)
 and the vendored `deep-time-map`. Not a Geode viewer.
+
+**Scope decision, superseding everything below that reads otherwise:** this page stays
+single-driver, permanently. It was originally scoped as a "walking skeleton" for a page that
+would go on to draw ridge length, subduction length, continental-arc length and rift length
+too — sections 6 and 12 below still describe that plan and are kept for their reasoning, but
+it will not happen *on this page*. Instead:
+
+- **LIP degassing** and **continental-arc length** each become their own sibling page, in this
+  same knob-driven style. Whether the LIP page reuses or replaces the existing `../lips` page
+  (a different, scroll-driven page about LIP area vs. extinction/glaciation) is **not decided**.
+- A **synthesis page**, built last once the single-driver pages exist, is where source and sink
+  sides actually meet — the CO₂ proxy compilation, the Sr curve, and any cross-driver comparison
+  belong there, not here.
+
+Every dataset this page uses is tracked family-wide, alongside genuine alternatives, in
+[`../shared/data/registry.json`](../shared/data/registry.json) — check there before a sibling
+page duplicates something this one already built.
 
 ---
 
@@ -120,7 +138,13 @@ turn, and find both bundles wide enough to swallow the difference.
 
 ---
 
-## 6. Drivers (v1)
+## 6. Drivers — original multi-driver plan, now split across future pages
+
+**This section describes the original scope, before the "one driver, permanently" decision
+at the top of this document.** Kept for its reasoning, not as a build list for this page: the
+source/sink split below, and which quantity belongs on which side, is exactly the design
+question the future LIP and continental-arc pages inherit. Nothing here gets built *on
+tectonic-co2*.
 
 Two groups that never subtract.
 
@@ -289,9 +313,10 @@ paying.
 | Smoothing / binning window | continuous | **ours** |
 | Per-km CO₂ flux (source side only) | continuous | GEOCARB published input ranges |
 
-**Sourced vs ours is marked in the UI.** Sourced ranges feed the strand enumeration by default;
-invented ranges default to fixed. A page about unexamined parameter choices that quietly makes its
-own unexamined parameter choices is not defensible.
+**Sourced vs ours is marked in the UI**, on every knob, regardless of whether that knob varies —
+the taper in latitude weighting is "ours" and still draws its full enumerated set alongside the
+sourced hard edge. What actually decides whether a knob varies is not sourced-vs-ours, it is
+whether its values are commensurable with each other: see the next section.
 
 A continuous knob is where the page could cheat. Sweeping band width 0–90° and calling the result
 uncertainty would make the spread our artefact, not the literature's. Hence snapping to the four
@@ -304,19 +329,26 @@ runoff weighting shows the sharp band was never a physical statement — and it 
 where the globe makes the point instantly: the belt goes from a crisp stripe to a soft gradient
 and the curve changes shape, not just amplitude.
 
-### Strand contributors are individually toggleable
+### Which knobs vary — a fixed rule, not a toggle
 
-Turn plate-model variation off and watch the bundle collapse — or not. This turns "everything is
-uncertain" (weak, easily dismissed) into "your conclusion rests on one choice, and it isn't the
-one that was defended" (specific, checkable). A sensitivity analysis is about as dry as a
-rhetorical device gets, because it is just arithmetic.
+Shipped: plate model, latitude band and weighting shape always draw their full enumerated set,
+every strand at once. Activity definition always draws only the one currently selected, never
+more. This was originally a per-knob checkbox ("vary across the bundle") so a reader could turn
+any one contributor off and watch the bundle collapse or not — the idea being that this turns
+"everything is uncertain" (weak, easily dismissed) into "your conclusion rests on one choice, and
+it isn't the one that was defended" (specific, checkable). Live, the checkbox's label communicated
+none of that to a first-time reader, so it was removed rather than relabelled: the rule that
+matters — activity definition doesn't mix with the others, full stop, see the previous section and
+that knob's own on-page note — is now just how the page behaves, not something a reader has to
+discover a control for.
 
-Expectation, to be checked once built rather than assumed: for tropical suture length the
-*latitude band* may contribute less than expected — sutures cluster, so ±10→±20 captures whole
-belts rather than shaving edges — while the *age definition* may contribute a lot, since it
-changes how long each suture stays active and that scales the integral directly. If so, the
-finding is not "the result is wrong" but "the robustness argument was made about the wrong
-parameter". That outcome is only reachable if contributors are separable.
+Still open, and worth checking once the family has more than one driver to compare: for tropical
+suture length the *latitude band* may contribute less than expected — sutures cluster, so
+±10→±20 captures whole belts rather than shaving edges — while the *age definition* (fixed, so not
+directly visible in the bundle, but comparable by switching it and reading the chart's axis) may
+contribute a lot, since it changes how long each suture stays active and that scales the integral
+directly. If so, the finding is not "the result is wrong" but "the robustness argument was made
+about the wrong parameter".
 
 ---
 
@@ -380,26 +412,32 @@ segments or reducing an array.
 
 ## 12. Deferred
 
-**v2 queue, in order:**
+**In scope for this page** — more reconstructions for the same driver, not more drivers:
 
-- **LIP weathering** — Park, Swanson-Hysell et al.; Franklin LIP → Sturtian Snowball link (Cox et
-  al. 2016; Macdonald & Swanson-Hysell). The strongest story in the 1000 Ma window, and the reason
-  the range goes to 1000 at all. Needs a second primitive: reconstructed LIP area by latitude with
-  an emplacement-decay function. Macdonald's `total_LIP_decay` / `within_15_LIP_decay` columns are
-  a reference implementation. `gprm.datasets.Seafloor.LargeIgneousProvinces`.
 - **Clennett2020** in a paleomagnetic frame — needs conversion work; interesting as a comparison.
-- **van Hinsbergen / Atlas of the Underworld** — the modern descendant of van der Meer's
-  tomographic slab approach.
 - Müller2019 (deforming), Cao2024, Li2023, Müller2022, Matthews2016, Domeier&Torsvik2014.
 - Shorter-range variants of the page (0–200, 0–540).
+
+**Belongs to a future page, not this one** — kept here so the reasoning behind each isn't lost,
+each moves with whichever sibling page picks it up:
+
+- **LIP weathering** — Park, Swanson-Hysell et al.; Franklin LIP → Sturtian Snowball link (Cox et
+  al. 2016; Macdonald & Swanson-Hysell). The strongest story in the deep-time window, and part of
+  why this page's own axis reaches 800 Ma even without drawing it. Needs a second primitive:
+  reconstructed LIP area by latitude with an emplacement-decay function. Macdonald's
+  `total_LIP_decay` / `within_15_LIP_decay` columns are a reference implementation.
+  `gprm.datasets.Seafloor.LargeIgneousProvinces`. Belongs to the future LIP-driver page — see the
+  scope note at the top of this document for why that page's relationship to `../lips` isn't
+  decided yet.
+- **van Hinsbergen / Atlas of the Underworld** — the modern descendant of van der Meer's
+  tomographic slab approach. Belongs wherever subduction-driven degassing gets built.
 - **Carbon cycle box model** (GEOCARB/COPSE in the browser). Physically the more honest object,
   but a working thermostat means CO₂ barely responds to degassing changes at steady state, so most
   knobs would produce a small dull response — and it argues against a claim the driver-comparison
-  papers did not make.
-
-**Firmly deferred:** carbonate-intersecting arcs. Needs paleogeographic carbonate platform extent
-consistent across multiple plate models, which does not exist. Faking it would be the exact sin
-the page is about.
+  papers did not make. Belongs to the future synthesis page, if anywhere.
+- **Carbonate-intersecting arcs.** Needs paleogeographic carbonate platform extent consistent
+  across multiple plate models, which does not exist. Faking it would be the exact sin the page is
+  about. Belongs to the future continental-arc page, and the same objection applies there.
 
 ---
 
@@ -413,8 +451,8 @@ the page is about.
   build step — point-in-polygon against Scotese static polygons — not a lookup, and it would be
   the first plate ID this page assigns itself rather than takes from the source, so it needs
   marking as such in the UI's provenance scheme.
-- Does the sparkline strip survive contact with six drivers, or does it need grouping?
-- Does the strand count stay in the dozens once all knobs are live?
+- ~~Does the strand count stay in the dozens once all knobs are live?~~ Answered: yes, 24
+  (3 models × 4 bands × 2 weightings, definition fixed).
 
 ---
 
