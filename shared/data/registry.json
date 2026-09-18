@@ -48,13 +48,13 @@
           "covers_ma": [525.0, 0.0],
           "source": "Macdonald, F.A., Swanson-Hysell, N.L., Park, Y., Lisiecki, L. & Jagoutz, O. (2019), Science 364, 181-184",
           "provenance": [
-            "tectonic-co2 reads it from the authors' own code_output/ice_LIP_suture_lengths.csv",
+            "TropicalSutures (GeodeViewers) reads it from the authors' own code_output/ice_LIP_suture_lengths.csv",
             "lips reads it from Ice_Extent.csv in Park et al. (2020)'s repository, their digitisation of the same figure"
           ],
           "verified": "The two paths were compared at all 105 overlapping ages and agree exactly. They are not variants; they are the same numbers by two routes.",
           "derivation_choices": {},
-          "used_by": ["tectonic-co2", "lips"],
-          "files": ["tectonic-co2/data/macdonald2019.json", "lips/data/ice_extent.csv"]
+          "used_by": ["TropicalSutures", "lips"],
+          "files": ["https://github.com/siwill22/GeodeViewers/blob/main/TropicalSutures/data/macdonald2019.json", "lips/data/ice_extent.csv"]
         },
         {
           "id": "macdonald2019-intervals",
@@ -87,8 +87,8 @@
           "covers_ma": [717.5, 579.88],
           "source": "Hoffman, P.F. et al. (2017), Science Advances 3(11), e1600983, Table 1; Gaskiers from Pu, J.P. et al. (2016), Geology 44(11), 955-958",
           "derivation_choices": {},
-          "used_by": ["tectonic-co2"],
-          "files": ["tectonic-co2/data/glaciations.json"]
+          "used_by": ["TropicalSutures"],
+          "files": ["https://github.com/siwill22/GeodeViewers/blob/main/TropicalSutures/data/glaciations.json"]
         }
       ],
       "known_alternatives": [
@@ -115,7 +115,7 @@
           "derivation_choices": {
             "anchor_plate": { "value": 0, "whose": "source's convention", "effect": "Its 001-relative-to-000 sequence is identity, so 0 and 1 agree here." }
           },
-          "used_by": ["tectonic-co2", "zircons", "detrital-zircons", "lips", "plate-boundaries"]
+          "used_by": ["TropicalSutures", "zircons", "detrital-zircons", "lips", "plate-boundaries"]
         },
         {
           "id": "TorsvikCocks2017",
@@ -127,7 +127,7 @@
           "derivation_choices": {
             "anchor_plate": { "value": 1, "whose": "source's convention", "effect": "Plate 001 is the spin axis in this model; anchoring on 000 moves paleolatitude by up to ~9 degrees." }
           },
-          "used_by": ["tectonic-co2"]
+          "used_by": ["TropicalSutures"]
         },
         {
           "id": "TC2017_SHM2017_D2018",
@@ -140,7 +140,7 @@
           "derivation_choices": {
             "anchor_plate": { "value": 1, "whose": "source's convention", "effect": "as TorsvikCocks2017" }
           },
-          "used_by": ["tectonic-co2"]
+          "used_by": ["TropicalSutures"]
         }
       ]
     },
@@ -160,8 +160,8 @@
             "band_edge": { "value": "hard or cosine taper", "whose": "hard is published; the taper is OURS", "effect": "Whether a suture crossing the edge counts fully or partly." },
             "time_step_myr": { "value": 5, "whose": "ours", "effect": "Matches the source's own 5 Myr output rather than implying finer precision." }
           },
-          "used_by": ["tectonic-co2"],
-          "files": ["tectonic-co2/data/*/sutures.json"]
+          "used_by": ["TropicalSutures"],
+          "files": ["https://github.com/siwill22/GeodeViewers/tree/main/TropicalSutures/data (per-model sutures.json)"]
         }
       ]
     },
@@ -190,8 +190,8 @@
           "relationship": "component",
           "covers_ma": [410.0, 0.0],
           "source": "Cao, W., Zahirovic, S., Flament, N., Williams, S., Golonka, J. & Muller, R.D. (2017), Biogeosciences 14, 5425-5439",
-          "note": "Shipped inside tectonic-co2/data/macdonald2019.json as the continental_arc_Cao2017 column, verbatim. Binned at 10 Myr by the source.",
-          "used_by": ["tectonic-co2"]
+          "note": "Shipped inside TropicalSutures/data/macdonald2019.json (GeodeViewers) as the continental_arc_Cao2017 column, verbatim. Binned at 10 Myr by the source.",
+          "used_by": ["TropicalSutures"]
         }
       ]
     }
